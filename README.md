@@ -26,7 +26,9 @@ Web aplikacija za prijavu komunalnih problema, pregled radova i stanja prometa u
    ```
    cmd /c "C:\xampp\mysql\bin\mysql.exe -u root < database\schema.sql"
    cmd /c "C:\xampp\mysql\bin\mysql.exe -u root < database\seed.sql"
+   C:\xampp\php\php.exe database\demo_slike.php
    ```
+   Zadnja naredba stvara zamjenske slike za testne prijave (`storage/uploads/prijave/`).
 6. Otvoriti http://localhost/zagreb-prijave
 
 Ako projekt nije u `htdocs/zagreb-prijave`, u `.env` treba promijeniti `APP_URL`.
@@ -42,6 +44,7 @@ Uz pokrenuti Apache i MySQL, u Git Bashu:
 ```
 bash tests/sigurnost.sh   # sigurnosni testovi (SQLi, XSS, CSRF, IDOR, upload, brute force...)
 bash tests/cms.sh         # funkcionalni testovi CMS-a
+bash tests/prijave.sh     # funkcionalni testovi prijava problema
 ```
 Skripte vraćaju bazu na početne podatke. Opis i rezultati: [docs/TESTOVI.md](docs/TESTOVI.md).
 

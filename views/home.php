@@ -25,7 +25,8 @@ $koraci = [
                 </p>
                 <div class="d-flex flex-wrap gap-2">
                     <?php if (Auth::check()): ?>
-                        <a href="<?= e(url('/racun/profil')) ?>" class="btn btn-light btn-lg text-zagreb fw-semibold">Moj profil</a>
+                        <a href="<?= e(url('/prijave/nova')) ?>" class="btn btn-light btn-lg text-zagreb fw-semibold">Prijavi problem</a>
+                        <a href="<?= e(url('/prijave/moje')) ?>" class="btn btn-outline-light btn-lg">Moje prijave</a>
                     <?php else: ?>
                         <a href="<?= e(url('/racun/registracija')) ?>" class="btn btn-light btn-lg text-zagreb fw-semibold">Registrirajte se i prijavite problem</a>
                     <?php endif; ?>

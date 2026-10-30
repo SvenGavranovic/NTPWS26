@@ -17,13 +17,14 @@ Na kraju su **česta pitanja**, **dnevnik faza** (što je dodano kada) i napomen
 5. [Javne vijesti: popis, pretraga, straničenje](#5-javne-vijesti-popis-pretraga-straničenje)
 6. [Profil korisnika](#6-profil-korisnika)
 7. [CMS: vijesti, kategorije, korisnici](#7-cms-vijesti-kategorije-korisnici)
-8. [Upload slika](#8-upload-slika)
-9. [Sigurnost – pregled svih zaštita](#9-sigurnost--pregled-svih-zaštita)
-10. [Izgled i pristupačnost](#10-izgled-i-pristupačnost)
-11. [Testiranje](#11-testiranje)
-12. [Česta pitanja](#12-česta-pitanja)
-13. [Dnevnik faza](#13-dnevnik-faza)
-14. [Korištenje AI alata](#14-korištenje-ai-alata)
+8. [Prijave problema](#8-prijave-problema)
+9. [Upload slika](#9-upload-slika)
+10. [Sigurnost – pregled svih zaštita](#10-sigurnost--pregled-svih-zaštita)
+11. [Izgled i pristupačnost](#11-izgled-i-pristupačnost)
+12. [Testiranje](#12-testiranje)
+13. [Česta pitanja](#13-česta-pitanja)
+14. [Dnevnik faza](#14-dnevnik-faza)
+15. [Korištenje AI alata](#15-korištenje-ai-alata)
 
 ---
 
@@ -37,7 +38,7 @@ public/
   .htaccess               sve što nije postojeća datoteka → index.php
   index.php               FRONT CONTROLLER – jedina PHP datoteka dostupna iz preglednika
   assets/                 css/app.css, js/app.js, js/urednik.js, img/grb-zagreb.svg
-  uploads/                slike koje šalju korisnici (.htaccess zabranjuje izvršavanje)
+  uploads/                javne slike (vijesti); .htaccess zabranjuje izvršavanje
 config/routes.php         popis svih ruta i tko im smije pristupiti
 src/
   helpers.php             e(), url(), redirect(), post(), get(), csrf_field()...
@@ -46,9 +47,9 @@ src/
   Services/               poslovna logika: validacija, pravila, tko smije što
   Models/                 SAMO SQL upiti, jedna klasa po tablici (ili namjeni)
 views/                    HTML predlošci (layout + pogledi + partials)
-database/                 schema.sql, seed.sql
+database/                 schema.sql, seed.sql, demo_slike.php
 tests/                    automatski testovi (bash + curl)
-storage/                  logs/app.log, cache/ (nije u gitu)
+storage/                  logs/app.log, cache/, uploads/prijave/ (privatne slike) – nije u gitu
 ```
 
 Uloge slojeva:
@@ -213,8 +214,9 @@ Dopušteni prijelazi (provjerava ih PHP, a ne baza):
    ```
    cmd /c "C:\xampp\mysql\bin\mysql.exe -u root < database\schema.sql"
    cmd /c "C:\xampp\mysql\bin\mysql.exe -u root < database\seed.sql"
+   C:\xampp\php\php.exe database\demo_slike.php
    ```
-   Isto se može kroz phpMyAdmin → **Import** (za phpMyAdmin mora raditi i Apache).
+   Zadnja naredba stvara slike za testne prijave. Uvoz se može i kroz phpMyAdmin → **Import** (za phpMyAdmin mora raditi i Apache).
 3. `schema.sql` **briše i ponovno stvara sve tablice**. Postupak se ponavlja svaki put kad se shema promijeni.
 
 ### Recept: nova tablica
@@ -473,19 +475,115 @@ Isti obrazac koristit će radnik i njegovi zadaci u fazi 6.
 
 ---
 
-## 8. Upload slika
+## 8. Prijave problema
+
+| Ruta | Što radi | Tko |
+|---|---|---|
+| `GET /prijave/nova`, `POST /prijave` | Obrazac i slanje nove prijave | svaki prijavljeni korisnik |
+| `GET /prijave/moje?status=` | Vlastite prijave s filtrom statusa i straničenjem | svaki prijavljeni korisnik |
+| `GET /prijave/{id}` | Detalj: slike, podaci, tijek statusa | podnositelj, admin, dodijeljeni radnik |
+| `GET /prijave/{id}/slike/{slikaId}` | Posluživanje slike (iz `storage/`, ne iz `public/`) | isto kao detalj |
+
+Novi dijelovi koda:
+- **kontroler:** `PrijavaController`;
+- **servisi:**
+  - `PrijavaService` – validacija, transakcija i pravila tko vidi što;
+  - `StatusPrijave` – nazivi i boje statusa i hitnosti (u fazi 6 i dopušteni prijelazi);
+- **modeli:** `Prijava` (proširen), `PrijavaSlika`, `PovijestStatusa`, `Sifrarnik` (četvrti i vrste problema);
+- **skripta:** `database/demo_slike.php`.
+
+Prijavu može poslati **svaki prijavljeni korisnik**, a ne samo uloga `korisnik`. I radnik ili urednik je građanin koji može primijetiti rupu na cesti.
+
+### Što šalje korisnik, a što postavlja sustav
+
+| Polje | Izvor |
+|---|---|
+| fotografija, gradska četvrt, vrsta problema, naslov, opis | korisnik (obavezno) |
+| adresa ili opis lokacije | korisnik (neobavezno) |
+| podnositelj (`korisnik_id`) | sesija |
+| datum i vrijeme (`kreirano_u`) | baza, `DEFAULT CURRENT_TIMESTAMP` |
+| hitnost `srednja`, status `PRIJAVLJENO` | baza, `DEFAULT` (hitnost mijenja samo admin, faza 6) |
+
+Podmetnuti `hitnost`, `status` ili `korisnik_id` u zahtjevu se ignoriraju (mass assignment).
+
+Opis je **običan tekst**, ne HTML. Ispisuje se s `nl2br(e($opis))`: najprije escaping, pa tek onda pretvaranje prijeloma redaka u `<br>`. Obrnutim redoslijedom `e()` bi escapeao i `<br>`.
+
+### Tok podataka: `POST /prijave` (transakcija)
+
+1. Router: CSRF → prijava (`auth`).
+2. `PrijavaController::store()` slaže ulaz od poznatih polja.
+3. `PrijavaService::create()`:
+   - provjerava ograničenje (najviše 10 prijava po korisniku u sat vremena, inače **429**);
+   - validira četvrt i vrstu (moraju postojati u šifrarniku), naslov (5–150), opis (10–2000) i adresu (do 255);
+   - tek ako je sve ispravno, sprema sliku (`ImageUpload`, do 5 MB, u `storage/uploads/prijave/`).
+4. **Transakcija:**
+   ```php
+   $db->beginTransaction();
+   try {
+       $id = (new Prijava())->create($korisnikId, $data);                      // 1. prijava
+       (new PrijavaSlika())->add($id, $korisnikId, 'prije', ...);              // 2. slika
+       (new PovijestStatusa())->add($id, $korisnikId, null, 'PRIJAVLJENO');    // 3. povijest
+       $db->commit();
+   } catch (Throwable $e) {
+       $db->rollBack();
+       ImageUpload::delete($upload['ime'], 'prijave');   // datoteka bez zapisa nikome ne treba
+       throw $e;
+   }
+   ```
+   Bez transakcije bi pad drugog ili trećeg upita ostavio prijavu bez slike ili bez povijesti. Test to dokazuje okidačem (*trigger*) u bazi koji namjerno ruši treći upit: nakon pogreške u bazi nema ni prijave, ni zapisa slike, ni datoteke.
+5. Uspjeh: 303 na `/prijave/{id}`. Pogreška validacije: 422 i obrazac s porukama. Preglednik ne može ponovno popuniti polje za datoteku, pa poruka traži ponovni odabir fotografije.
+
+### Tko vidi što
+
+| | Podnositelj | Dodijeljeni radnik | Admin | Ostali |
+|---|---|---|---|---|
+| detalj prijave i slika „prije” | ✔ | ✔ | ✔ | 403 |
+| slika „poslije” | tek kad je status `ZAVRSENO` | ✔ | ✔ | 403 |
+| interni komentari (napomena radnika, razlog vraćanja) | — | ✔ | ✔ | — |
+| imena zaposlenika u tijeku | samo uloga („Radnik”, „Administrator”) | ✔ | ✔ | — |
+| ime podnositelja | „Vi” | ✔ | ✔ | — |
+
+- Pravila su u `PrijavaService` (`canView`, `isStaff`, `canSeeImage`). Kontroler ih poziva i za detalj i za **svaku** sliku (recept iz [7](#recept-provjera-vlasništva-zapisa-zaštita-od-idor)).
+- Slika „poslije” skrivena je od građanina dok admin ne odobri posao: može je još odbiti i vratiti radniku.
+- `PrijavaSlika::find($prijavaId, $slikaId)` traži sliku **unutar** te prijave. Inače bi se kroz vlastitu prijavu mogla dohvatiti tuđa slika: `/prijave/1/slike/<id slike druge prijave>` → 404.
+
+### Slike izvan webroota
+
+Fotografije prijava mogu sadržavati osobne podatke (lica, registarske oznake, kuću podnositelja). Zato se, za razliku od slika vijesti, **ne nalaze u `public/`**:
+- spremaju se u `storage/uploads/prijave/`, do kojeg preglednik ne može doći (korijenski `.htaccess` sve šalje u `public/`);
+- jedini put do slike je `PrijavaController::image()`, koji provjerava prijavu i pravo pristupa, a zatim šalje datoteku s `readfile()`;
+- odgovor ima `Content-Type` iz baze (provjeren pri uploadu), `Cache-Control: private` (ne sprema se na dijeljenim proxyjima) i `Content-Security-Policy: sandbox`;
+- ime datoteke dolazi iz baze, a `ImageUpload::path()` uz to koristi `basename()`, pa `../` ne može izaći iz mape.
+
+### Demo slike za testne podatke
+
+Prijave iz `seed.sql` pokazuju na datoteke `demo-p01-prije.png` … Stvara ih `database/demo_slike.php` (pokreće se nakon uvoza seeda, vidi [2](#recept-postavljanje-ili-resetiranje-baze)).
+- XAMPP nema GD, pa skripta slaže PNG „ručno": retci piksela, svaki s bajtom filtra `0`, sažeti `gzcompress` i zapakirani u PNG blokove `IHDR`, `IDAT`, `IEND` s CRC32.
+- Natpis („PRIJAVA #06 / POSLIJE / DEMO”) iscrtava se vlastitim fontom 5×7 piksela.
+- Datoteke nisu u gitu (`/storage/uploads/*`), jer ih skripta uvijek može ponovno stvoriti.
+
+### Statusi u sučelju
+
+`StatusPrijave::STATUSI` za svaki status drži naziv, boju oznake i kratko objašnjenje za građanina (npr. „Čeka provjeru – radnik je završio, služba provjerava obavljeni posao”). Nazivi su na jednom mjestu, pa popis, detalj i (kasnije) kanban prikazuju iste nazive i boje.
+
+---
+
+## 9. Upload slika
 
 `ImageUpload` ne vjeruje ničemu što šalje preglednik:
 
 | Provjera | Zašto |
 |---|---|
 | `is_uploaded_file()` | datoteka je stvarno stigla HTTP uploadom |
-| veličina ≤ 2 MB | zaštita diska i memorije |
+| veličina ≤ 2 MB za vijesti, ≤ 5 MB za prijave (fotografije s mobitela) | zaštita diska i memorije |
 | `finfo` čita MIME iz **sadržaja** datoteke (magični bajtovi) | `Content-Type` i ekstenziju bira klijent i može ih lažirati |
 | samo JPEG, PNG, WebP | **SVG nije dopušten**, jer može sadržavati `<script>` |
 | `getimagesize()` prepoznaje sliku, MIME se podudara, dimenzije do 6000 px | odbija lažne slike i „decompression bomb” slike |
 | ime `bin2hex(random_bytes(16)).ext`, ekstenzija iz provjerenog MIME-a | ime se ne može pogoditi ni podmetnuti (`../`, `.php`) |
-| `public/uploads/.htaccess` | PHP isključen (`php_flag engine off`), poslužuju se samo `.jpg/.png/.webp`, nema popisa datoteka, `nosniff`, CSP `sandbox` |
+| `public/uploads/.htaccess` (vijesti) | PHP isključen (`php_flag engine off`), poslužuju se samo `.jpg/.png/.webp`, nema popisa datoteka, `nosniff`, CSP `sandbox` |
+| `storage/uploads/` (prijave) | izvan webroota; slike poslužuje PHP nakon provjere ovlasti (vidi [8](#slike-izvan-webroota)) |
+
+Mape su zadane u `ImageUpload::MAPE` (`'vijesti'` → `public/uploads/vijesti`, `'prijave'` → `storage/uploads/prijave`), pa pozivatelj ne može upisati proizvoljnu putanju.
 
 - **Obrana u dubinu.** Ispravan PNG s PHP kodom na kraju („poliglot”) prolazi provjere, jer jest valjana slika. Ipak se sprema kao `<nasumično>.png` i ne izvršava se. I PHP datoteka ručno podmetnuta u `uploads/` vraća 403.
 - **Redoslijed:** slika se sprema tek kad su ostala polja ispravna. Stara slika briše se s diska tek **nakon** uspješnog UPDATE-a, a ako baza ne uspije, briše se nova. Baza tako nikad ne pokazuje na nepostojeću datoteku.
@@ -495,18 +593,21 @@ Isti obrazac koristit će radnik i njegovi zadaci u fazi 6.
 ### Recept: upload slike u novom obrascu
 
 1. Obrazac: `enctype="multipart/form-data"`, polje `<input type="file" name="slika" accept="image/jpeg,image/png,image/webp">`.
-2. U servisu, **nakon** validacije ostalih polja:
+2. Odluči je li slika javna (`public/uploads/...`) ili privatna (`storage/uploads/...`) i dodaj mapu u `ImageUpload::MAPE`.
+3. U servisu, **nakon** validacije ostalih polja:
    ```php
-   $upload = ImageUpload::save($_FILES['slika'] ?? null, 'prijave');
+   $upload = ImageUpload::save($_FILES['slika'] ?? null, 'vijesti');      // treći argument: najveća veličina
    if (isset($upload['greska'])) { return ['slika' => $upload['greska']]; }
-   $ime = $upload['ime'] ?? null;   // null = slika nije poslana
+   $ime = $upload['ime'] ?? null;   // null = slika nije poslana; uz ime su i 'mime' i 'velicina'
    ```
-3. Ako spremanje u bazu ne uspije, pozovi `ImageUpload::delete($ime, 'prijave')`.
-4. U pogledu: `<img src="<?= e(url('uploads/prijave/' . $ime)) ?>">`.
+4. Ako spremanje u bazu ne uspije, pozovi `ImageUpload::delete($ime, 'vijesti')`.
+5. Prikaz:
+   - javna slika: `<img src="<?= e(url('uploads/vijesti/' . $ime)) ?>">`;
+   - privatna slika: ruta kroz kontroler koji provjeri ovlast i pošalje datoteku (uzor je `PrijavaController::image()`).
 
 ---
 
-## 9. Sigurnost – pregled svih zaštita
+## 10. Sigurnost – pregled svih zaštita
 
 | Prijetnja | Zaštita | Gdje |
 |---|---|---|
@@ -520,7 +621,10 @@ Isti obrazac koristit će radnik i njegovi zadaci u fazi 6.
 | Session fixation i krađa sesije | `session_regenerate_id(true)`, `use_strict_mode`, `HttpOnly`, ID samo u kolačiću | `Auth::login`, `Session::start` |
 | Deaktivirani korisnik ostaje prijavljen | Uloga i `aktivan` čitaju se iz baze pri svakom zahtjevu | `Auth::user` |
 | Neovlašten pristup stranici | Opcije rute (`auth`, `uloge`), 403 i kad se URL upiše ručno | `Router::passesGuards` |
-| IDOR (tuđi zapis preko ID-a) | Provjera vlasništva za svaku radnju (`findEditable`, `canEdit`) | `NewsAdminController` |
+| IDOR (tuđi zapis preko ID-a) | Provjera vlasništva za svaku radnju i svaku sliku (`findEditable`/`canEdit`, `findVisible`/`canView`) | `NewsAdminController`, `PrijavaController` |
+| Curenje osobnih podataka iz prijava | Slike prijava izvan webroota, poslužuje ih PHP nakon provjere; građanin ne vidi interne komentare ni imena zaposlenika | `PrijavaController::image`, `PrijavaService` |
+| Nedovršeni zapisi pri pogrešci | Transakcija za prijavu + sliku + povijest; datoteka se briše kod `rollBack` | `PrijavaService::create` |
+| Zatrpavanje prijavama (spam) | Najviše 10 prijava po korisniku u sat vremena → 429 | `PrijavaService` |
 | Mass assignment | Kontroler čita samo poznata polja; autor i uloga dolaze iz sesije ili konstante | kontroleri, `AuthService::OSNOVNA_ULOGA` |
 | Admin se zaključa izvan sustava | Vlastita uloga i status ne mogu se mijenjati | `UserAdminController` |
 | Zlonamjerni upload | MIME iz sadržaja, `getimagesize`, bez SVG-a, nasumično ime, PHP isključen u `uploads/` | `ImageUpload`, `uploads/.htaccess` |
@@ -543,7 +647,7 @@ Isti obrazac koristit će radnik i njegovi zadaci u fazi 6.
 
 ---
 
-## 10. Izgled i pristupačnost
+## 11. Izgled i pristupačnost
 
 - **Grb Grada Zagreba** (SVG) preuzet je s Wikimedia Commons:
   - licenca je **javno vlasništvo (Public domain)**, uz oznaku **„insignia”**: službeni simboli ne smiju se koristiti tako da sugeriraju službeni status;
@@ -561,13 +665,14 @@ Isti obrazac koristit će radnik i njegovi zadaci u fazi 6.
 
 ---
 
-## 11. Testiranje
+## 12. Testiranje
 
 Automatski testovi u mapi `tests/` šalju stvarne HTTP zahtjeve aplikaciji i provjeravaju odgovore i stanje baze:
 
 ```
 bash tests/sigurnost.sh     # poznati napadi (SQLi, XSS, CSRF, IDOR, upload, brute force...)
 bash tests/cms.sh           # funkcionalnost CMS-a
+bash tests/prijave.sh       # prijave problema (uključujući test transakcije)
 ```
 
 Skripte vraćaju bazu na početne podatke. Opis, upute i tablice „očekivano / dobiveno” za sve faze su u [TESTOVI.md](TESTOVI.md).
@@ -583,11 +688,12 @@ Skripte vraćaju bazu na početne podatke. Opis, upute i tablice „očekivano /
 2. Za prijavljenog korisnika: `JAR=$(prijava email@...)`, zatim `-b "$JAR"`.
 3. Za POST: CSRF token s `t=$(tok "$JAR" /stranica-s-obrascem)` i `--data-urlencode "_csrf=$t"`.
 4. Upload: `-F "slika=@$TW/datoteka.png"` (`$TW` je Windows putanja privremene mape).
+   Tekst koji počinje znakom `<` (npr. HTML) šalje se s `--form-string`, jer `-F 'polje=<...'` curl čita kao ime datoteke.
 5. Dopuni tablicu u `TESTOVI.md`.
 
 ---
 
-## 12. Česta pitanja
+## 13. Česta pitanja
 
 **Arhitektura**
 - *Što je front controller?* Jedna ulazna točka (`public/index.php`) za sve zahtjeve. Konfiguracija, sesija, zaglavlja i provjere ovlasti izvode se na jednom mjestu, za svaki zahtjev.
@@ -598,7 +704,8 @@ Skripte vraćaju bazu na početne podatke. Opis, upute i tablice „očekivano /
 - *Zašto status prijave nije i u tablici `zadaci`?* Da ne bude zapisan na dva mjesta (normalizacija, jedan izvor istine).
 - *Kako baza sprječava dva računa s istim e-mailom?* `UNIQUE` indeks i collation `_ci`, neosjetljiv na velika i mala slova.
 - *Zašto CHECK ako PHP već validira?* Obrana u dubinu: ako u kodu postoji greška, baza i dalje odbija nemoguće podatke.
-- *Kad se koristi transakcija?* Kad jedna radnja mijenja više tablica koje moraju ostati usklađene (dodjela zadatka, slanje na provjeru sa slikom).
+- *Kad se koristi transakcija?* Kad jedna radnja mijenja više tablica koje moraju ostati usklađene: nova prijava (prijava + slika + povijest), dodjela zadatka, slanje na provjeru sa slikom.
+- *Kako se može dokazati da transakcija radi?* Privremenim okidačem u bazi koji ruši zadnji upit. Nakon pogreške u bazi ne smije ostati ništa od prvih upita (`tests/prijave.sh`).
 - *Gdje se provjerava da radnik ne može staviti ZAVRSENO?* U PHP-u (state machine). Baza zna koje vrijednosti statusa postoje, ali ne i tko ih smije postaviti.
 
 **Sigurnost**
@@ -616,6 +723,12 @@ Skripte vraćaju bazu na početne podatke. Opis, upute i tablice „očekivano /
 - *Što je mass assignment?* Napad u kojem se zahtjevu dodaju polja koja obrazac nema (`autor_id`, `uloga`). Kod uzima samo poznata polja.
 - *Kako radi zaštita od pogađanja lozinke?* Neuspjeli pokušaji broje se po e-mailu i po IP adresi u prozoru od 15 minuta. Nakon granice odgovor je 429, čak i za ispravnu lozinku.
 
+**Prijave**
+- *Zašto su slike prijava izvan `public/`, a slike vijesti nisu?* Slike vijesti su javne. Slike prijava mogu sadržavati osobne podatke i smije ih vidjeti samo podnositelj i služba, pa ih poslužuje PHP nakon provjere.
+- *Zašto građanin ne vidi sliku „poslije” dok posao nije odobren?* Administrator je još može odbiti. Građaninu se prikazuje tek odobreni rezultat.
+- *Zašto korisnik ne bira hitnost?* Svatko bi odabrao „kritično”. Hitnost procjenjuje služba (administrator), a sustav postavlja zadanu vrijednost.
+- *Zašto `nl2br(e(...))`, a ne `e(nl2br(...))`?* Escaping mora biti prvi. Obrnuto bi i `<br>` pretvorio u vidljivi tekst `&lt;br&gt;`.
+
 **Vijesti i CMS**
 - *Što je OFFSET i kako se računa?* `(stranica − 1) × po_stranici`. Za stranicu 2 uz 4 po stranici to je 4: preskaču se prve četiri vijesti.
 - *Zašto pretraga escapea `%` i `_`?* To su zamjenski znakovi u LIKE; bez escapinga bi se mogli izvoditi nepredviđeni upiti.
@@ -625,20 +738,21 @@ Skripte vraćaju bazu na početne podatke. Opis, upute i tablice „očekivano /
 
 ---
 
-## 13. Dnevnik faza
+## 14. Dnevnik faza
 
 | Faza | Što je dodano | Teme u priručniku |
 |---|---|---|
 | 1 | Prijedlog projekta, ER dijagram, `schema.sql`, `seed.sql` | [2](#2-baza-podataka) |
 | 2 | Front controller, router, registracija, prijava, uloge, CSRF, sigurnosna zaglavlja | [1](#1-arhitektura-i-put-jednog-zahtjeva), [3](#3-rute-i-zaštita-stranica), [4](#4-prijava-sesije-i-uloge) |
-| 3 | Početna s grbom, javne vijesti (pretraga, filtar, straničenje), profil, „O projektu” | [5](#5-javne-vijesti-popis-pretraga-straničenje), [6](#6-profil-korisnika), [10](#10-izgled-i-pristupačnost) |
-| 4 | CMS (vijesti s Quillom, HTMLPurifierom i slikom, kategorije, korisnici), upload, zaštita od pogađanja lozinke (tablica `pokusaji_prijave`), skrivanje `X-Powered-By`, testovi napada | [7](#7-cms-vijesti-kategorije-korisnici), [8](#8-upload-slika), [9](#9-sigurnost--pregled-svih-zaštita), [11](#11-testiranje) |
+| 3 | Početna s grbom, javne vijesti (pretraga, filtar, straničenje), profil, „O projektu” | [5](#5-javne-vijesti-popis-pretraga-straničenje), [6](#6-profil-korisnika), [11](#11-izgled-i-pristupačnost) |
+| 4 | CMS (vijesti s Quillom, HTMLPurifierom i slikom, kategorije, korisnici), upload, zaštita od pogađanja lozinke (tablica `pokusaji_prijave`), skrivanje `X-Powered-By`, testovi napada | [7](#7-cms-vijesti-kategorije-korisnici), [9](#9-upload-slika), [10](#10-sigurnost--pregled-svih-zaštita), [12](#12-testiranje) |
+| 5 | Prijave problema (obrazac sa slikom, transakcija, moje prijave, detalj s tijekom), slike izvan webroota, ograničenje broja prijava, demo slike | [8](#8-prijave-problema), [9](#9-upload-slika) |
 
-Composer ovisnosti: `vlucas/phpdotenv` (faza 2), `ezyang/htmlpurifier` (faza 4).
+Composer ovisnosti: `vlucas/phpdotenv` (faza 2), `ezyang/htmlpurifier` (faza 4). Faza 5 nije dodala nove ovisnosti.
 
 ---
 
-## 14. Korištenje AI alata
+## 15. Korištenje AI alata
 
 Tijekom razvoja korišten je **Claude Code** (Anthropic):
 
@@ -648,5 +762,6 @@ Tijekom razvoja korišten je **Claude Code** (Anthropic):
 | 2 | struktura koda, router, autentifikacija, automatski cURL testovi |
 | 3 | javni dio, profil, stilovi, testovi, provjera licence grba |
 | 4 | CMS (kontroleri, servisi, pogledi, Quill i HTMLPurifier), sigurnosna analiza i testovi napada, zaštita od pogađanja lozinke |
+| 5 | prijave problema (servis s transakcijom, pogledi, posluživanje slika izvan webroota), generator demo slika, testovi |
 
 Sav generirani kod pregledan je i ručno isproban u pregledniku, a automatski testovi pokrenuti su nakon svake faze.

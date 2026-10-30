@@ -7,19 +7,28 @@ namespace App\Services;
 use RuntimeException;
 
 /**
- * Sigurno spremanje slike poslane obrascem (vijesti, a u fazi 5 i prijave).
+ * Sigurno spremanje slike poslane obrascem (vijesti i prijave problema).
  *
  * Ne vjeruje se ničemu što šalje preglednik:
  *  - naziv datoteke i "Content-Type" iz zahtjeva se IGNORIRAJU,
  *  - stvarna vrsta se čita iz sadržaja datoteke (finfo, "magični bajtovi"),
  *  - getimagesize() mora prepoznati ispravnu sliku s razumnim dimenzijama,
  *  - ekstenzija se određuje iz provjerenog MIME tipa, a ime je nasumično.
- * Mapa uploads/ uz to ima .htaccess koji zabranjuje izvršavanje skripti.
+ *
+ * Gdje se slike spremaju (MAPE):
+ *  - vijesti: public/uploads/ – javne slike; .htaccess zabranjuje izvršavanje skripti,
+ *  - prijave: storage/uploads/ – IZVAN webroota; preglednik do njih dolazi samo
+ *    preko PHP-a koji prije provjeri smije li korisnik vidjeti prijavu.
  */
 final class ImageUpload
 {
-    public const MAX_BAJTOVA = 2 * 1024 * 1024; // 2 MB
+    public const MAX_BAJTOVA = 2 * 1024 * 1024; // 2 MB (zadano)
     private const MAX_DIMENZIJA = 6000;           // px, štiti od "decompression bomb" slika
+
+    private const MAPE = [
+        'vijesti' => '/public/uploads/vijesti',
+        'prijave' => '/storage/uploads/prijave',
+    ];
 
     /** Dopušteni MIME tipovi → ekstenzija pod kojom se sprema. SVG namjerno nije dopušten (može sadržavati JavaScript). */
     private const TIPOVI = [
@@ -30,10 +39,11 @@ final class ImageUpload
 
     /**
      * @param array|null $file  element iz $_FILES
-     * @return array{ime?: string, greska?: string}  prazan niz = datoteka nije poslana
+     * @return array{ime?: string, mime?: string, velicina?: int, greska?: string}  prazan niz = datoteka nije poslana
      */
-    public static function save(?array $file, string $mapa): array
+    public static function save(?array $file, string $mapa, int $maxBajtova = self::MAX_BAJTOVA): array
     {
+        $poruka = 'Slika smije imati najviše ' . intdiv($maxBajtova, 1024 * 1024) . ' MB.';
         if ($file === null || !isset($file['error']) || is_array($file['error'])) {
             return [];  // nije poslano ili je poslano više datoteka pod istim imenom (slika[]=)
         }
@@ -41,7 +51,7 @@ final class ImageUpload
             return [];
         }
         if ($file['error'] === UPLOAD_ERR_INI_SIZE || $file['error'] === UPLOAD_ERR_FORM_SIZE) {
-            return ['greska' => 'Slika smije imati najviše 2 MB.'];
+            return ['greska' => $poruka];
         }
         if ($file['error'] !== UPLOAD_ERR_OK) {
             return ['greska' => 'Slika nije ispravno poslana. Pokušajte ponovno.'];
@@ -51,8 +61,8 @@ final class ImageUpload
         if (!is_uploaded_file($file['tmp_name'])) {
             return ['greska' => 'Slika nije ispravno poslana. Pokušajte ponovno.'];
         }
-        if ($file['size'] > self::MAX_BAJTOVA) {
-            return ['greska' => 'Slika smije imati najviše 2 MB.'];
+        if ($file['size'] > $maxBajtova) {
+            return ['greska' => $poruka];
         }
 
         $mime = (new \finfo(FILEINFO_MIME_TYPE))->file($file['tmp_name']);
@@ -78,7 +88,7 @@ final class ImageUpload
         if (!move_uploaded_file($file['tmp_name'], $dir . '/' . $ime)) {
             throw new RuntimeException('Spremanje slike nije uspjelo.');
         }
-        return ['ime' => $ime];
+        return ['ime' => $ime, 'mime' => $mime, 'velicina' => (int) $file['size']];
     }
 
     /** Briše prethodno spremljenu sliku. Ime se provjerava, pa se ne može podmetnuti "../". */
@@ -93,8 +103,14 @@ final class ImageUpload
         }
     }
 
+    /** Puna putanja do spremljene datoteke (za posluživanje slika izvan webroota). */
+    public static function path(string $ime, string $mapa): string
+    {
+        return self::dir($mapa) . '/' . basename($ime);
+    }
+
     private static function dir(string $mapa): string
     {
-        return BASE_PATH . '/public/uploads/' . $mapa;
+        return BASE_PATH . (self::MAPE[$mapa] ?? throw new RuntimeException("Nepoznata mapa za upload: {$mapa}"));
     }
 }

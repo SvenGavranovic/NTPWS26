@@ -166,23 +166,24 @@ INSERT INTO zadaci (id, prijava_id, radnik_id, dodijelio_id, napomena_radnika, d
 -- ---------------------------------------------------------------------
 -- SLIKE PRIJAVA
 -- 'prije' za svaku prijavu (učitao građanin), 'poslije' za prijave koje su
--- bile poslane na provjeru (učitao radnik). Datoteke se dodaju u fazi 5.
+-- bile poslane na provjeru (učitao radnik). Same datoteke (zamjenske slike)
+-- stvara skripta database/demo_slike.php u storage/uploads/prijave/
 -- ---------------------------------------------------------------------
 INSERT INTO prijava_slike (prijava_id, ucitao_id, tip, datoteka, mime_tip, velicina, kreirano_u) VALUES
-  (1,  6, 'prije',   'demo-p01-prije.jpg',   'image/jpeg', 245760, '2026-10-27 09:15:00'),
-  (2,  7, 'prije',   'demo-p02-prije.jpg',   'image/jpeg', 312400, '2026-10-29 18:40:00'),
-  (3,  6, 'prije',   'demo-p03-prije.jpg',   'image/jpeg', 198300, '2026-10-22 11:00:00'),
-  (4,  7, 'prije',   'demo-p04-prije.jpg',   'image/jpeg', 280100, '2026-10-20 07:45:00'),
-  (5,  6, 'prije',   'demo-p05-prije.jpg',   'image/jpeg', 150900, '2026-10-18 16:20:00'),
-  (6,  7, 'prije',   'demo-p06-prije.jpg',   'image/jpeg', 301000, '2026-10-14 12:00:00'),
-  (6,  5, 'poslije', 'demo-p06-poslije.jpg', 'image/jpeg', 287500, '2026-10-28 14:00:00'),
-  (7,  6, 'prije',   'demo-p07-prije.jpg',   'image/jpeg', 330200, '2026-10-10 10:00:00'),
-  (7,  4, 'poslije', 'demo-p07-poslije.jpg', 'image/jpeg', 120400, '2026-10-17 15:00:00'),
-  (8,  7, 'prije',   'demo-p08-prije.jpg',   'image/png',  410000, '2026-10-02 09:00:00'),
-  (8,  5, 'poslije', 'demo-p08-poslije.jpg', 'image/jpeg', 265000, '2026-10-03 12:00:00'),
-  (9,  6, 'prije',   'demo-p09-prije.jpg',   'image/jpeg', 222000, '2026-10-05 19:00:00'),
-  (9,  4, 'poslije', 'demo-p09-poslije.jpg', 'image/jpeg', 230500, '2026-10-09 11:00:00'),
-  (10, 8, 'prije',   'demo-p10-prije.jpg',   'image/jpeg', 199000, '2026-10-08 12:30:00');
+  (1,  6, 'prije',   'demo-p01-prije.png',   'image/png',   4073, '2026-10-27 09:15:00'),
+  (2,  7, 'prije',   'demo-p02-prije.png',   'image/png',   4221, '2026-10-29 18:40:00'),
+  (3,  6, 'prije',   'demo-p03-prije.png',   'image/png',   4221, '2026-10-22 11:00:00'),
+  (4,  7, 'prije',   'demo-p04-prije.png',   'image/png',   4237, '2026-10-20 07:45:00'),
+  (5,  6, 'prije',   'demo-p05-prije.png',   'image/png',   4242, '2026-10-18 16:20:00'),
+  (6,  7, 'prije',   'demo-p06-prije.png',   'image/png',   4285, '2026-10-14 12:00:00'),
+  (6,  5, 'poslije', 'demo-p06-poslije.png', 'image/png',   3780, '2026-10-28 14:00:00'),
+  (7,  6, 'prije',   'demo-p07-prije.png',   'image/png',   4366, '2026-10-10 10:00:00'),
+  (7,  4, 'poslije', 'demo-p07-poslije.png', 'image/png',   3935, '2026-10-17 15:00:00'),
+  (8,  7, 'prije',   'demo-p08-prije.png',   'image/png',   4404, '2026-10-02 09:00:00'),
+  (8,  5, 'poslije', 'demo-p08-poslije.png', 'image/png',   3997, '2026-10-03 12:00:00'),
+  (9,  6, 'prije',   'demo-p09-prije.png',   'image/png',   4325, '2026-10-05 19:00:00'),
+  (9,  4, 'poslije', 'demo-p09-poslije.png', 'image/png',   4010, '2026-10-09 11:00:00'),
+  (10, 8, 'prije',   'demo-p10-prije.png',   'image/png',   4442, '2026-10-08 12:30:00');
 
 -- ---------------------------------------------------------------------
 -- POVIJEST STATUSA – kronološki tragovi koji odgovaraju trenutnom

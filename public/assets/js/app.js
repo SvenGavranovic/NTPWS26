@@ -9,3 +9,22 @@ document.addEventListener('submit', function (event) {
         event.preventDefault();
     }
 });
+
+/*
+ * Pregled odabrane slike prije slanja: <input type="file" data-pregled="id-slike">.
+ * Slika se ne šalje nikamo – URL.createObjectURL prikazuje lokalnu datoteku.
+ */
+document.addEventListener('change', function (event) {
+    var polje = event.target;
+    var pregled = polje.getAttribute && document.getElementById(polje.getAttribute('data-pregled') || '');
+    if (!pregled) {
+        return;
+    }
+    var datoteka = polje.files && polje.files[0];
+    if (datoteka && datoteka.type.indexOf('image/') === 0) {
+        pregled.src = URL.createObjectURL(datoteka);
+        pregled.classList.remove('d-none');
+    } else {
+        pregled.classList.add('d-none');
+    }
+});

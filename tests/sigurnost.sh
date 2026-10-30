@@ -265,7 +265,52 @@ check "CRLF injection u preusmjeravanju" \
 header_hasnt "  → nema podmetnutog kolačića" 'Set-Cookie: zlo'
 
 # ---------------------------------------------------------------------
-naslov "10. Pogađanje lozinke – brute force (A07)"
+naslov "10. Prijave problema: IDOR, slike izvan webroota, upload (A01/A04)"
+# Prijave sadrže osobne podatke i fotografije – vidi ih samo podnositelj,
+# administrator i dodijeljeni radnik.
+# ---------------------------------------------------------------------
+sid() { echo "SELECT id FROM prijava_slike WHERE prijava_id=$1 AND tip='$2'" | SQL; }
+ANA=$(prijava ana@zagreb-prijave.test)
+LUKA=$(prijava luka@zagreb-prijave.test)
+check "Luka → Anina prijava 1 (IDOR)" "$(code -b "$LUKA" "$B/prijave/1")" "403"
+check "Luka → slika Anine prijave" "$(code -b "$LUKA" "$B/prijave/1/slike/$(sid 1 prije)")" "403"
+check "Ana → Lukina slika preko SVOJE prijave (/prijave/1/slike/<slika prijave 2>)" "$(code -b "$ANA" "$B/prijave/1/slike/$(sid 2 prije)")" "404"
+check "gost → slika prijave" "$(code "$B/prijave/1/slike/$(sid 1 prije)")" "303 $B/racun/prijava"
+for p in /storage/uploads/prijave/demo-p01-prije.png /uploads/prijave/demo-p01-prije.png /public/../storage/uploads/prijave/demo-p01-prije.png; do
+    s=$(code --path-as-is "$B$p")
+    if [[ "$s" == 404* || "$s" == 403* || "$s" == 400* ]] && ! grep -q 'PNG' "$T/body"; then ok "izravan pristup slici: $p → ${s%% *}"; else fail "slika dostupna bez provjere: $p → $s"; fi
+done
+
+check "nova prijava bez CSRF tokena" "$(code -b "$ANA" -X POST -F cetvrt_id=1 -F vrsta_id=1 -F 'naslov=Bez tokena' -F 'opis=Prijava bez CSRF tokena' -F "slika=@$TW/ok.png" "$B/prijave")" "403"
+broj_prijava_slika() { ls "$KORIJEN/storage/uploads/prijave" | wc -l; }
+{ cat "$T/ok.png"; head -c 6000000 /dev/zero; } > "$T/vrlo_velika.png"
+prijava_s() {  # prijava_s DATOTEKA → status
+    local t; t=$(tok "$ANA" /prijave/nova)
+    code -b "$ANA" -X POST -F "_csrf=$t" -F cetvrt_id=1 -F vrsta_id=1 -F 'naslov=Test uploada' -F 'opis=Testiranje uploada uz prijavu' -F "slika=@$1" "$B/prijave"
+}
+prije=$(broj_prijava_slika)
+check "prijava: web shell shell.php" "$(prijava_s "$TW/shell.php")" "422"
+check "prijava: shell.jpg s lažnim Content-Type" "$(prijava_s "$TW/shell.jpg;type=image/jpeg")" "422"
+check "prijava: SVG sa <script>" "$(prijava_s "$TW/zlo.svg;type=image/svg+xml")" "422"
+check "prijava: slika veća od 5 MB" "$(prijava_s "$TW/vrlo_velika.png;type=image/png")" "422"
+eq    "  → nijedna odbijena datoteka nije spremljena" "$(broj_prijava_slika)" "$prije"
+
+t=$(tok "$ANA" /prijave/nova)
+code -b "$ANA" -X POST -F "_csrf=$t" -F cetvrt_id=1 -F vrsta_id=1 --form-string 'naslov=<img src=x onerror=alert(1)>' \
+    --form-string 'opis=<script>alert(document.cookie)</script> opis' --form-string 'adresa="><svg onload=alert(1)>' -F "slika=@$TW/ok.png" "$B/prijave" >/dev/null
+PID=$(echo "SELECT MAX(id) FROM prijave" | SQL)
+eq    "prijava sa zlonamjernim naslovom/opisom/adresom je spremljena" "$(echo "SELECT naslov FROM prijave WHERE id=$PID" | SQL)" '<img src=x onerror=alert(1)>'
+code -b "$ANA" "$B/prijave/$PID" >/dev/null
+hasnt "pohranjeni XSS u naslovu prijave" '<img src=x'
+hasnt "pohranjeni XSS u opisu prijave" '<script>alert(document.cookie)'
+hasnt "pohranjeni XSS u adresi prijave" '"><svg'
+code -b "$ADMIN" "$B/prijave/$PID" >/dev/null
+hasnt "  → ni kod administratora (koji vidi više podataka)" '<img src=x'
+code -b "$ANA" -G --data-urlencode "status=PRIJAVLJENO' OR '1'='1" "$B/prijave/moje" >/dev/null
+eq    "SQLi u filtru statusa → filtar ignoriran (6 Aninih prijava)" "$(grep -c 'list-group-item-action' "$T/body")" "6"
+
+# ---------------------------------------------------------------------
+naslov "11. Pogađanje lozinke – brute force (A07)"
 # Na kraju, jer blokada po IP-u utječe na sve daljnje prijave s ovog računala.
 # ---------------------------------------------------------------------
 echo "DELETE FROM pokusaji_prijave" | SQL

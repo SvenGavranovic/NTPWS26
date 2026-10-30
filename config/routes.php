@@ -18,6 +18,7 @@ use App\Controllers\CategoryController;
 use App\Controllers\HomeController;
 use App\Controllers\NewsAdminController;
 use App\Controllers\NewsController;
+use App\Controllers\PrijavaController;
 use App\Controllers\ProfileController;
 use App\Controllers\UserAdminController;
 
@@ -40,6 +41,14 @@ $router->post('/racun/odjava',      [AuthController::class, 'logout'],       ['a
 $router->get('/racun/profil',   [ProfileController::class, 'show'],           ['auth' => true]);
 $router->post('/racun/profil',  [ProfileController::class, 'update'],         ['auth' => true]);
 $router->post('/racun/lozinka', [ProfileController::class, 'changePassword'], ['auth' => true]);
+
+// Prijave problema (svaki prijavljeni korisnik; tko smije vidjeti koju
+// prijavu provjerava PrijavaService::canView)
+$router->get('/prijave/nova',                  [PrijavaController::class, 'create'], ['auth' => true]);
+$router->post('/prijave',                      [PrijavaController::class, 'store'],  ['auth' => true]);
+$router->get('/prijave/moje',                  [PrijavaController::class, 'index'],  ['auth' => true]);
+$router->get('/prijave/{id}',                  [PrijavaController::class, 'show'],   ['auth' => true]);
+$router->get('/prijave/{id}/slike/{slikaId}',  [PrijavaController::class, 'image'],  ['auth' => true]);
 
 // CMS: vijesti (urednik samo svoje – provjera u NewsAdminController, admin sve)
 $router->get('/admin/vijesti',              [NewsAdminController::class, 'index'],   $urednistvo);

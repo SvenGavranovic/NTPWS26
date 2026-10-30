@@ -101,11 +101,19 @@ $polje = static function (array $errors, string $name): array {
     </div>
 </div>
 
-<?php if ($korisnik['uloga'] === 'korisnik'): ?>
-    <div class="card mt-4">
-        <div class="card-body">
-            <h2 class="h5 card-title">Moje prijave</h2>
-            <p class="text-body-secondary mb-0">Pregled vlastitih prijava i njihovih statusa dodaje se u fazi 5.</p>
+<div class="card mt-4">
+    <div class="card-body d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <div>
+            <h2 class="h5 card-title mb-1">Moje prijave</h2>
+            <p class="text-body-secondary mb-0">
+                <?= $brojPrijava === 0 ? 'Još niste poslali nijednu prijavu.' : 'Poslanih prijava: ' . (int) $brojPrijava ?>
+            </p>
+        </div>
+        <div class="d-flex gap-2">
+            <?php if ($brojPrijava > 0): ?>
+                <a href="<?= e(url('/prijave/moje')) ?>" class="btn btn-outline-primary">Pregled prijava</a>
+            <?php endif; ?>
+            <a href="<?= e(url('/prijave/nova')) ?>" class="btn btn-primary">Prijavi problem</a>
         </div>
     </div>
-<?php endif; ?>
+</div>

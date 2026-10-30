@@ -51,6 +51,9 @@ $flash = Session::pullFlash();
                 <?= nav_link('/', 'Početna') ?>
                 <?= nav_link('/vijesti', 'Vijesti') ?>
                 <?= nav_link('/o-projektu', 'O projektu') ?>
+                <?php if ($korisnik): ?>
+                    <?= nav_link('/prijave/moje', 'Moje prijave') ?>
+                <?php endif; ?>
                 <!-- Poveznice su skrivene ostalima, ali PRAVU zaštitu radi router (403) -->
                 <?php if (Auth::hasRole('admin')): ?>
                     <?= nav_link('/admin', 'Administracija') ?>
@@ -61,6 +64,9 @@ $flash = Session::pullFlash();
 
             <ul class="navbar-nav align-items-lg-center gap-lg-2">
                 <?php if ($korisnik): ?>
+                    <li class="nav-item">
+                        <a class="btn btn-light btn-sm text-zagreb fw-semibold" href="<?= e(url('/prijave/nova')) ?>">+ Prijavi problem</a>
+                    </li>
                     <li class="nav-item">
                         <a class="nav-link" href="<?= e(url('/racun/profil')) ?>">
                             <?= e($korisnik['ime'] . ' ' . $korisnik['prezime']) ?>

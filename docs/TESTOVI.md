@@ -11,6 +11,7 @@ Potrebno je:
 ```
 bash tests/sigurnost.sh     # napadi (OWASP Top 10)
 bash tests/cms.sh           # funkcionalnost CMS-a (faza 4)
+bash tests/prijave.sh       # prijave problema (faza 5)
 ```
 
 > **Upozorenje:** skripte na početku i na kraju vraćaju bazu na početne podatke (`schema.sql` + `seed.sql`). Pokreću se samo na razvojnoj bazi.
@@ -21,7 +22,7 @@ Svaka sljedeća faza (prijave, kanban, API, TomTom) dodaje nove slučajeve u `te
 
 ## Sigurnosni testovi – `tests/sigurnost.sh`
 
-Stanje nakon faze 4: **119 / 119 prošlo** (30. 10. 2026.)
+Stanje nakon faze 5: **138 / 138 prošlo** (30. 10. 2026.)
 
 | # | Napad | Primjer zahtjeva | Očekivano | Dobiveno |
 |---|---|---|---|---|
@@ -56,9 +57,14 @@ Stanje nakon faze 4: **119 / 119 prošlo** (30. 10. 2026.)
 | 9 | Nedopuštene HTTP metode | `PUT /racun/profil`, `DELETE /admin/vijesti/1` | 405 + `Allow` | ✔ |
 | 9 | Open redirect | `povratak=https://napadac.example`, `//napadac.example/...` | preusmjeravanje unutar aplikacije | ✔ |
 | 9 | CRLF injection | `povratak=/admin/korisnici\r\nSet-Cookie: zlo=1` | bez podmetnutog zaglavlja | ✔ |
-| 10 | Brute force | 5 krivih lozinki pa ispravna | 429 + `Retry-After: 900` | ✔ |
-| 10 | Brute force na nepostojeći račun | 5 pokušaja | 429 (ne otkriva postoji li račun) | ✔ |
-| 10 | Password spraying | 20 pokušaja s iste IP adrese na razne račune | 429 i za ostale račune | ✔ |
+| 10 | IDOR na prijavama | Luka otvara Aninu prijavu i njezinu sliku; Ana traži tuđu sliku kroz svoju prijavu (`/prijave/1/slike/<slika prijave 2>`) | 403 / 403 / 404 | ✔ |
+| 10 | Izravan pristup privatnim slikama | `/storage/uploads/prijave/...`, `/uploads/prijave/...`, `/public/../storage/...`; gost na `/prijave/1/slike/..` | 404/403, bez sadržaja; gost na prijavu | ✔ |
+| 10 | Upload uz prijavu | bez CSRF tokena; `shell.php`; `shell.jpg` s lažnim tipom; SVG; > 5 MB | 403 / 422, ništa spremljeno | ✔ |
+| 10 | Pohranjeni XSS u prijavi | `<img onerror>` u naslovu, `<script>` u opisu, `"><svg onload>` u adresi | spremljeno, ali escapeano (i kod admina) | ✔ |
+| 10 | SQLi u filtru statusa | `status=PRIJAVLJENO' OR '1'='1` | filtar ignoriran | ✔ |
+| 11 | Brute force | 5 krivih lozinki pa ispravna | 429 + `Retry-After: 900` | ✔ |
+| 11 | Brute force na nepostojeći račun | 5 pokušaja | 429 (ne otkriva postoji li račun) | ✔ |
+| 11 | Password spraying | 20 pokušaja s iste IP adrese na razne račune | 429 i za ostale račune | ✔ |
 | – | Stabilnost | svi gornji napadi | nijedna pogreška 500 u `storage/logs/app.log` | ✔ |
 
 ### Poznata ograničenja (svjesno prihvaćena)
@@ -87,6 +93,20 @@ Stanje nakon faze 4: **72 / 72 prošlo** (30. 10. 2026.)
 | Admin i tuđa vijest | admin uređuje Tinovu vijest; autor i datum objave ostaju; brisanje; ponovno brisanje → 404 | ✔ |
 | Kategorije | dodavanje; duplikat (i malim slovima) i prekratak naziv → 422; preimenovanje; brisanje kategorije s vijestima odbijeno; prazna obrisana; nepostojeća → 404 | ✔ |
 | Korisnici | filtri (uloga, deaktivirani, pretraga); promjena uloge (Luka postaje urednik i odmah ulazi u CMS); povratak na filtrirani popis; aktivacija računa; nepostojeći korisnik → 404 | ✔ |
+
+## Funkcionalni testovi prijava – `tests/prijave.sh`
+
+Stanje nakon faze 5: **62 / 62 prošlo** (30. 10. 2026.)
+
+| Područje | Scenariji | Dobiveno |
+|---|---|---|
+| Pristup | gost na obrazac, popis i detalj → preusmjeravanje na prijavu | ✔ |
+| Moje prijave | Ana vidi točno svojih 5 prijava, bez Lukinih; sličice idu kroz PHP; filtri `ZAVRSENO`, `DODIJELJENO`; nepoznat status ignoriran; poruka za korisnika bez prijava | ✔ |
+| Detalj | podaci, hitnost, „Vi” u tijeku; slika `image/png` s `Cache-Control: private`; građanin NE vidi interni komentar, imena zaposlenika ni neodobrenu sliku „poslije” (ni izravnim URL-om → 404); kod ZAVRŠENE prijave vidi sliku „poslije”; admin vidi sve; radnik vidi svoju, a ne tuđu prijavu (403); nepostojeća prijava/slika → 404 | ✔ |
+| Validacija | 17 četvrti + 9 vrsta u izbornicima; prazan obrazac, bez slike, četvrt 99 → 422 s porukama; upisano ostaje; ništa se ne sprema | ✔ |
+| Uspješna prijava | status `PRIJAVLJENO`, hitnost `srednja`, vlasnik iz sesije (podmetnuto ignorirano); vrijeme sada; zapis slike i prvi zapis povijesti; datoteka izvan webroota s nasumičnim imenom; opis s `<br>`, `<script>` escapean; profil broji 6 prijava | ✔ |
+| Transakcija | okidač u bazi ruši 3. upit → 500, a u bazi nema prijave ni slike, na disku nema datoteke (ROLLBACK) | ✔ |
+| Zatrpavanje | 10. prijava u sat vremena prolazi, 11. → 429 s porukom | ✔ |
 
 ## Testovi prethodnih faza
 

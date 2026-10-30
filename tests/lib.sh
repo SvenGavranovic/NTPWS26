@@ -4,6 +4,7 @@
 
 B="${APP_URL:-http://localhost/zagreb-prijave}"
 MYSQL="${MYSQL:-/c/xampp/mysql/bin/mysql.exe}"
+PHP="${PHP:-/c/xampp/php/php.exe}"
 KORIJEN="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 T="$(mktemp -d)"
 # Windows curl (Git Bash) ne razumije uvijek /tmp putanje u -F "polje=@datoteka"
@@ -19,9 +20,12 @@ naslov() { echo; echo "== $1"; }
 # SQL nad testnom bazom (bez zaglavlja stupaca)
 SQL() { "$MYSQL" -u root zagreb_prijave -N; }
 
-# Vraća bazu u početno stanje (schema + seed). BRIŠE SVE PODATKE!
+# Vraća bazu u početno stanje (schema + seed + demo slike prijava). BRIŠE SVE PODATKE!
+# Slike prijava koje su nastale tijekom testova brišu se (ostaju samo demo-*.png).
 reset_baze() {
-    "$MYSQL" -u root < "$KORIJEN/database/schema.sql" && "$MYSQL" -u root < "$KORIJEN/database/seed.sql"
+    "$MYSQL" -u root < "$KORIJEN/database/schema.sql" && "$MYSQL" -u root < "$KORIJEN/database/seed.sql" || return 1
+    find "$KORIJEN/storage/uploads/prijave" -type f ! -name "demo-*" -delete 2>/dev/null
+    "$PHP" "$KORIJEN/database/demo_slike.php" > /dev/null
 }
 
 # code [curl opcije] URL → "statusni_kod preusmjerenje", tijelo odgovora ide u $T/body

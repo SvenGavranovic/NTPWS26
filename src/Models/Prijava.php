@@ -8,8 +8,8 @@ use App\Core\Database;
 use PDO;
 
 /**
- * Prijave problema. Za sada samo javna statistika za početnu stranicu;
- * ostatak dolazi u fazama 5 i 6.
+ * Prijave problema (tablica `prijave`). Samo SQL; tko smije vidjeti koju
+ * prijavu odlučuje PrijavaService.
  */
 final class Prijava
 {
@@ -31,5 +31,99 @@ final class Prijava
         )->fetch();
 
         return array_map('intval', $row);
+    }
+
+    /**
+     * Nova prijava. Datum i vrijeme (kreirano_u), hitnost ('srednja') i status
+     * ('PRIJAVLJENO') NE dolaze od korisnika – postavlja ih baza (DEFAULT).
+     */
+    public function create(int $korisnikId, array $d): int
+    {
+        $stmt = $this->db->prepare(
+            'INSERT INTO prijave (korisnik_id, cetvrt_id, vrsta_id, naslov, opis, adresa)
+             VALUES (?, ?, ?, ?, ?, ?)'
+        );
+        $stmt->execute([$korisnikId, $d['cetvrt_id'], $d['vrsta_id'], $d['naslov'], $d['opis'], $d['adresa']]);
+        return (int) $this->db->lastInsertId();
+    }
+
+    /** Jedna prijava s nazivima četvrti/vrste i ID-jem dodijeljenog radnika (ili null). */
+    public function findById(int $id): ?array
+    {
+        $stmt = $this->db->prepare(
+            "SELECT p.*, c.naziv AS cetvrt, v.naziv AS vrsta,
+                    CONCAT(k.ime, ' ', k.prezime) AS prijavitelj,
+                    z.radnik_id
+               FROM prijave p
+               JOIN gradske_cetvrti c ON c.id = p.cetvrt_id
+               JOIN vrste_problema v  ON v.id = p.vrsta_id
+               JOIN korisnici k       ON k.id = p.korisnik_id
+               LEFT JOIN zadaci z     ON z.prijava_id = p.id
+              WHERE p.id = ?"
+        );
+        $stmt->execute([$id]);
+        return $stmt->fetch() ?: null;
+    }
+
+    /** Prijave jednog korisnika (najnovije prve), uz naslovnu sliku "prije". */
+    public function findByUser(int $korisnikId, ?string $status, int $limit, int $offset): array
+    {
+        [$where, $params] = $this->userWhere($korisnikId, $status);
+
+        $stmt = $this->db->prepare(
+            "SELECT p.id, p.naslov, p.status, p.kreirano_u, p.azurirano_u, p.adresa,
+                    c.naziv AS cetvrt, v.naziv AS vrsta,
+                    (SELECT s.id FROM prijava_slike s
+                      WHERE s.prijava_id = p.id AND s.tip = 'prije'
+                      ORDER BY s.id LIMIT 1) AS slika_id
+               FROM prijave p
+               JOIN gradske_cetvrti c ON c.id = p.cetvrt_id
+               JOIN vrste_problema v  ON v.id = p.vrsta_id
+              WHERE {$where}
+              ORDER BY p.kreirano_u DESC, p.id DESC
+              LIMIT :limit OFFSET :offset"
+        );
+        foreach ($params as $name => $value) {
+            $stmt->bindValue($name, $value);
+        }
+        $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+        $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+        $stmt->execute();
+
+        return $stmt->fetchAll();
+    }
+
+    public function countByUser(int $korisnikId, ?string $status = null): int
+    {
+        [$where, $params] = $this->userWhere($korisnikId, $status);
+
+        $stmt = $this->db->prepare("SELECT COUNT(*) FROM prijave p WHERE {$where}");
+        $stmt->execute($params);
+        return (int) $stmt->fetchColumn();
+    }
+
+    /** Broj prijava korisnika u zadnjih $minuta minuta (zaštita od zatrpavanja prijavama). */
+    public function countRecentByUser(int $korisnikId, int $minuta): int
+    {
+        $stmt = $this->db->prepare(
+            'SELECT COUNT(*) FROM prijave WHERE korisnik_id = :k AND kreirano_u > NOW() - INTERVAL :m MINUTE'
+        );
+        $stmt->bindValue(':k', $korisnikId, PDO::PARAM_INT);
+        $stmt->bindValue(':m', $minuta, PDO::PARAM_INT);
+        $stmt->execute();
+        return (int) $stmt->fetchColumn();
+    }
+
+    /** @return array{0: string, 1: array<string, int|string>} */
+    private function userWhere(int $korisnikId, ?string $status): array
+    {
+        $where = ['p.korisnik_id = :korisnik'];
+        $params = [':korisnik' => $korisnikId];
+
+        if ($status !== null) {
+            $where[] = 'p.status = :status';
+            $params[':status'] = $status;
+        }
+        return [implode(' AND ', $where), $params];
     }
 }

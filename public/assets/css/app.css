@@ -96,3 +96,12 @@ a:hover { color: var(--zg-plava-tamna); }
 #uredjivac.is-invalid, .ql-toolbar + #uredjivac.is-invalid { border-color: var(--bs-form-invalid-border-color); }
 .ql-toolbar.ql-snow { border-top-left-radius: var(--bs-border-radius); border-top-right-radius: var(--bs-border-radius); }
 .ql-container.ql-snow { border-bottom-left-radius: var(--bs-border-radius); border-bottom-right-radius: var(--bs-border-radius); }
+
+/* --- Prijave problema ------------------------------------------------ */
+.prijava-slicica { width: 80px; height: 60px; object-fit: cover; flex-shrink: 0; }
+.tijek { border-left: 2px solid var(--bs-border-color); padding-left: 1rem; }
+.tijek-stavka { position: relative; padding-bottom: 1rem; }
+.tijek-stavka::before {
+    content: ""; position: absolute; left: calc(-1rem - 6px); top: .35rem;
+    width: 10px; height: 10px; border-radius: 50%; background: var(--zg-plava);
+}

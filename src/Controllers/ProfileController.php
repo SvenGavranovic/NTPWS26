@@ -7,6 +7,7 @@ namespace App\Controllers;
 use App\Core\Auth;
 use App\Core\Session;
 use App\Core\View;
+use App\Models\Prijava;
 use App\Services\ProfileService;
 
 /**
@@ -58,8 +59,9 @@ final class ProfileController
     private function render(array $data = [], int $status = 200): void
     {
         View::render('profil/index', $data + [
-            'title'    => 'Moj profil',
-            'korisnik' => Auth::user(),
+            'title'       => 'Moj profil',
+            'korisnik'    => Auth::user(),
+            'brojPrijava' => (new Prijava())->countByUser((int) Auth::user()['id']),
         ], $status);
     }
 }
