@@ -94,4 +94,79 @@ final class Korisnik
         $stmt = $this->db->prepare('UPDATE korisnici SET lozinka_hash = ? WHERE id = ?');
         $stmt->execute([$hash, $id]);
     }
+    // --- Administracija korisnika ------------------------------------------
+
+    /** Popis za administratora: pretraga po imenu/e-mailu, filtar uloge i statusa. */
+    public function findForAdmin(string $q, ?string $uloga, ?int $aktivan, int $limit, int $offset): array
+    {
+        [$where, $params] = $this->adminWhere($q, $uloga, $aktivan);
+
+        $stmt = $this->db->prepare(
+            "SELECT k.id, k.ime, k.prezime, k.email, k.aktivan, k.zadnja_prijava, k.kreirano_u,
+                    u.kod AS uloga, u.naziv AS uloga_naziv
+               FROM korisnici k
+               JOIN uloge u ON u.id = k.uloga_id
+              WHERE {$where}
+              ORDER BY k.prezime, k.ime, k.id
+              LIMIT :limit OFFSET :offset"
+        );
+        foreach ($params as $name => $value) {
+            $stmt->bindValue($name, $value);
+        }
+        $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+        $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+        $stmt->execute();
+
+        return $stmt->fetchAll();
+    }
+
+    public function countForAdmin(string $q, ?string $uloga, ?int $aktivan): int
+    {
+        [$where, $params] = $this->adminWhere($q, $uloga, $aktivan);
+
+        $stmt = $this->db->prepare("SELECT COUNT(*) FROM korisnici k JOIN uloge u ON u.id = k.uloga_id WHERE {$where}");
+        $stmt->execute($params);
+        return (int) $stmt->fetchColumn();
+    }
+
+    /** kod => naziv svih uloga (redoslijed po id-u: od najmanjih ovlasti). */
+    public function roles(): array
+    {
+        return $this->db->query('SELECT kod, naziv FROM uloge ORDER BY id')->fetchAll(PDO::FETCH_KEY_PAIR);
+    }
+
+    /** Uloga se zadaje KODOM; INSERT/UPDATE ... SELECT odbija nepostojeću ulogu (0 redaka). */
+    public function updateRoleAndStatus(int $id, string $ulogaKod, bool $aktivan): void
+    {
+        $stmt = $this->db->prepare(
+            'UPDATE korisnici k
+               JOIN uloge u ON u.kod = ?
+                SET k.uloga_id = u.id, k.aktivan = ?
+              WHERE k.id = ?'
+        );
+        $stmt->execute([$ulogaKod, $aktivan ? 1 : 0, $id]);
+    }
+
+    /** @return array{0: string, 1: array<string, int|string>} */
+    private function adminWhere(string $q, ?string $uloga, ?int $aktivan): array
+    {
+        $where = ['1 = 1'];
+        $params = [];
+
+        if ($q !== '') {
+            $like = '%' . addcslashes($q, '%_\\') . '%';
+            $where[] = "(CONCAT(k.ime, ' ', k.prezime) LIKE :q1 OR k.email LIKE :q2)";
+            $params[':q1'] = $params[':q2'] = $like;
+        }
+        if ($uloga !== null) {
+            $where[] = 'u.kod = :uloga';
+            $params[':uloga'] = $uloga;
+        }
+        if ($aktivan !== null) {
+            $where[] = 'k.aktivan = :aktivan';
+            $params[':aktivan'] = $aktivan;
+        }
+
+        return [implode(' AND ', $where), $params];
+    }
 }

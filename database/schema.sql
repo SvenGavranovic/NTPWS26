@@ -17,6 +17,7 @@ SET NAMES utf8mb4;
 -- Privremeno isključujemo provjeru stranih ključeva samo da bi se tablice
 -- mogle obrisati bez obzira na redoslijed. Na kraju se ponovno uključuje.
 SET FOREIGN_KEY_CHECKS = 0;
+DROP TABLE IF EXISTS pokusaji_prijave;
 DROP TABLE IF EXISTS povijest_statusa;
 DROP TABLE IF EXISTS prijava_slike;
 DROP TABLE IF EXISTS zadaci;
@@ -297,4 +298,22 @@ CREATE TABLE radovi (
     ON UPDATE CASCADE ON DELETE RESTRICT,
   CONSTRAINT chk_radovi_razdoblje CHECK (kraj IS NULL OR kraj >= pocetak),
   CONSTRAINT chk_radovi_koord_zg  CHECK (lat BETWEEN 45.60 AND 46.00 AND lng BETWEEN 15.75 AND 16.30)
+) ENGINE=InnoDB;
+
+-- ---------------------------------------------------------------------
+-- 12. NEUSPJELI POKUŠAJI PRIJAVE (zaštita od pogađanja lozinke)
+-- Svaki neuspjeli login upisuje redak. Ako je u zadnjih 15 minuta bilo
+-- previše pokušaja za isti e-mail ili s iste IP adrese, prijava se
+-- privremeno odbija (HTTP 429). Uspješna prijava briše retke za taj e-mail.
+-- Tablica nije povezana stranim ključem s korisnicima namjerno: bilježe
+-- se i pokušaji za e-mailove koji ne postoje.
+-- ---------------------------------------------------------------------
+CREATE TABLE pokusaji_prijave (
+  id      BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  email   VARCHAR(255)    NOT NULL,
+  ip      VARCHAR(45)     NOT NULL,           -- IPv6 adresa ima najviše 45 znakova
+  vrijeme DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_pokusaji_email (email, vrijeme),
+  KEY idx_pokusaji_ip (ip, vrijeme)
 ) ENGINE=InnoDB;

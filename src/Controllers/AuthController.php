@@ -23,22 +23,30 @@ final class AuthController
     public function login(): void
     {
         $email = post('email');
-        $result = (new AuthService())->attemptLogin($email, post('lozinka'));
+        $result = (new AuthService())->attemptLogin($email, post('lozinka'), $_SERVER['REMOTE_ADDR'] ?? '');
 
         if (!$result['ok']) {
-            // 401 jer autentifikacija nije uspjela; lozinka se ne vraća u obrazac
+            // 401 = autentifikacija nije uspjela, 429 = previše pokušaja (Too Many Requests).
+            // Lozinka se ne vraća u obrazac.
+            if (!empty($result['blokirano'])) {
+                header('Retry-After: ' . (AuthService::PROZOR_MINUTA * 60));
+            }
             View::render('auth/login', [
                 'title' => 'Prijava',
                 'greska' => $result['greska'],
                 'old' => ['email' => $email],
-            ], 401);
+            ], empty($result['blokirano']) ? 401 : 429);
             return;
         }
 
         Auth::login($result['korisnik']);
         Session::flash('success', 'Uspješno ste se prijavili.');
 
-        redirect(Auth::hasRole('admin') ? '/admin' : '/');
+        redirect(match (true) {
+            Auth::hasRole('admin')   => '/admin',
+            Auth::hasRole('urednik') => '/admin/vijesti',
+            default                  => '/',
+        });
     }
 
     public function registerForm(): void

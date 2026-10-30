@@ -24,6 +24,11 @@ $flash = Session::pullFlash();
           href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
           integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH"
           crossorigin="anonymous">
+    <?php if (!empty($urednik)): ?>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.snow.css"
+              integrity="sha384-ecIckRi4QlKYya/FQUbBUjS4qp65jF/J87Guw5uzTbO1C1Jfa/6kYmd6dXUF6D7i"
+              crossorigin="anonymous">
+    <?php endif; ?>
     <link rel="stylesheet" href="<?= e(asset('css/app.css')) ?>">
 </head>
 <body class="d-flex flex-column min-vh-100">
@@ -46,9 +51,11 @@ $flash = Session::pullFlash();
                 <?= nav_link('/', 'Početna') ?>
                 <?= nav_link('/vijesti', 'Vijesti') ?>
                 <?= nav_link('/o-projektu', 'O projektu') ?>
+                <!-- Poveznice su skrivene ostalima, ali PRAVU zaštitu radi router (403) -->
                 <?php if (Auth::hasRole('admin')): ?>
-                    <!-- Poveznica je skrivena ostalima, ali PRAVU zaštitu radi router (403) -->
                     <?= nav_link('/admin', 'Administracija') ?>
+                <?php elseif (Auth::hasRole('urednik')): ?>
+                    <?= nav_link('/admin/vijesti', 'Moje vijesti') ?>
                 <?php endif; ?>
             </ul>
 
@@ -125,5 +132,12 @@ $flash = Session::pullFlash();
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
         integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
         crossorigin="anonymous"></script>
+<script src="<?= e(asset('js/app.js')) ?>"></script>
+<?php if (!empty($urednik)): ?>
+    <script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js"
+            integrity="sha384-utBUCeG4SYaCm4m7GQZYr8Hy8Fpy3V4KGjBZaf4WTKOcwhCYpt/0PfeEe3HNlwx8"
+            crossorigin="anonymous"></script>
+    <script src="<?= e(asset('js/urednik.js')) ?>"></script>
+<?php endif; ?>
 </body>
 </html>

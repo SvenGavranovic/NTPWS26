@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Models\Korisnik;
+use App\Models\PokusajPrijave;
 use PDOException;
 
 /**
@@ -22,6 +23,16 @@ final class AuthService
      * vremenu odgovora mogao otkriti koji su e-mailovi registrirani.
      */
     private const LAZNI_HASH = '$2y$10$Nmsb6AKRjkZFbH0TX43MMuZAnpPladKqo/VqC7oIV8Ky52N9F76eG';
+
+    /**
+     * Zaštita od pogađanja lozinke (brute force): nakon previše neuspjelih
+     * pokušaja u PROZORU minuta prijava se privremeno odbija. Ograničenje po
+     * e-mailu štiti jedan račun, a ograničenje po IP-u sprječava da jedan
+     * napadač isprobava jednu lozinku na mnogo računa.
+     */
+    public const PROZOR_MINUTA = 15;
+    private const MAX_PO_EMAILU = 5;
+    private const MAX_PO_IP = 20;
 
     private Korisnik $korisnici;
 
@@ -84,20 +95,37 @@ final class AuthService
     }
 
     /**
-     * @return array{ok: bool, korisnik?: array, greska?: string}
+     * @return array{ok: bool, korisnik?: array, greska?: string, blokirano?: bool}
      */
-    public function attemptLogin(string $email, string $lozinka): array
+    public function attemptLogin(string $email, string $lozinka, string $ip): array
     {
         $email = self::normalizeEmail($email);
+        $pokusaji = new PokusajPrijave();
+
+        // Provjera PRIJE provjere lozinke: dok je blokada aktivna, ni ispravna
+        // lozinka ne prolazi, pa napadač ne može saznati je li pogodio
+        $broj = $pokusaji->count($email, $ip, self::PROZOR_MINUTA);
+        if ($broj['email'] >= self::MAX_PO_EMAILU || $broj['ip'] >= self::MAX_PO_IP) {
+            return [
+                'ok' => false,
+                'blokirano' => true,
+                'greska' => 'Previše neuspjelih pokušaja prijave. Pokušajte ponovno za ' . self::PROZOR_MINUTA . ' minuta.',
+            ];
+        }
+
         $korisnik = $email !== '' ? $this->korisnici->findForLogin($email) : null;
 
         // password_verify se izvodi i kad korisnik ne postoji (vidi LAZNI_HASH)
         $ispravna = password_verify($lozinka, $korisnik['lozinka_hash'] ?? self::LAZNI_HASH);
 
         if ($korisnik === null || !$ispravna) {
+            // Bilježi se i za nepostojeći e-mail, inače bi se po blokadi vidjelo koji računi postoje
+            $pokusaji->add(mb_substr($email, 0, 255), $ip);
             // Ista poruka za nepostojeći e-mail i pogrešnu lozinku
             return ['ok' => false, 'greska' => 'Neispravan e-mail ili lozinka.'];
         }
+
+        $pokusaji->clearForEmail($email);
 
         if ((int) $korisnik['aktivan'] !== 1) {
             return ['ok' => false, 'greska' => 'Vaš račun je deaktiviran. Obratite se administratoru.'];

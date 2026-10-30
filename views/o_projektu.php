@@ -7,7 +7,7 @@
         </p>
 
         <div class="alert alert-warning">
-            Ovo je <strong>studentski projekt</strong> za kolegij Napredno web projektiranje web servisa.
+            Ovo je <strong>studentski projekt</strong> za kolegij Napredne tehnike projektiranja web servisa (open source, php).
             Aplikacija nije službena i nije povezana s Gradom Zagrebom. Prijave se ne prosljeđuju gradskim službama.
         </div>
 

@@ -33,8 +33,21 @@ Ako projekt nije u `htdocs/zagreb-prijave`, u `.env` treba promijeniti `APP_URL`
 
 Pristupni podaci za testne račune predaju se kroz LMS.
 
+Nakon promjene sheme (npr. nova tablica u novoj fazi) bazu treba ponovno uvesti
+naredbama iz koraka 5. Time se brišu svi podaci i vraćaju početni testni podaci.
+
+## Testovi
+
+Uz pokrenuti Apache i MySQL, u Git Bashu:
+```
+bash tests/sigurnost.sh   # sigurnosni testovi (SQLi, XSS, CSRF, IDOR, upload, brute force...)
+bash tests/cms.sh         # funkcionalni testovi CMS-a
+```
+Skripte vraćaju bazu na početne podatke. Opis i rezultati: [docs/TESTOVI.md](docs/TESTOVI.md).
+
 ## Dokumentacija
 
 - [Prijedlog projekta](docs/PRIJEDLOG_PROJEKTA.md)
 - [ER dijagram i pravila brisanja](docs/ER.md)
-- [Objašnjenja odluka po fazama](docs/OBJASNJENJA.md)
+- [Priručnik: kako aplikacija radi i recepti](docs/OBJASNJENJA.md)
+- [Testovi i rezultati](docs/TESTOVI.md)

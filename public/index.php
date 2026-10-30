@@ -60,6 +60,7 @@ set_exception_handler(static function (Throwable $e): void {
 header('X-Content-Type-Options: nosniff');           // preglednik ne pogađa vrstu sadržaja
 header('X-Frame-Options: DENY');                     // zaštita od clickjackinga (iframe)
 header('Referrer-Policy: same-origin');
+header_remove('X-Powered-By');                       // ne otkrivamo verziju PHP-a napadaču
 
 // --- 3. Sesija --------------------------------------------------------------
 Session::start();
