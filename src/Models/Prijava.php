@@ -53,12 +53,13 @@ final class Prijava
         $stmt = $this->db->prepare(
             "SELECT p.*, c.naziv AS cetvrt, v.naziv AS vrsta,
                     CONCAT(k.ime, ' ', k.prezime) AS prijavitelj,
-                    z.radnik_id
+                    z.radnik_id, z.napomena_radnika, CONCAT(r.ime, ' ', r.prezime) AS radnik
                FROM prijave p
                JOIN gradske_cetvrti c ON c.id = p.cetvrt_id
                JOIN vrste_problema v  ON v.id = p.vrsta_id
                JOIN korisnici k       ON k.id = p.korisnik_id
                LEFT JOIN zadaci z     ON z.prijava_id = p.id
+               LEFT JOIN korisnici r  ON r.id = z.radnik_id
               WHERE p.id = ?"
         );
         $stmt->execute([$id]);
@@ -112,6 +113,95 @@ final class Prijava
         $stmt->bindValue(':m', $minuta, PDO::PARAM_INT);
         $stmt->execute();
         return (int) $stmt->fetchColumn();
+    }
+
+    /**
+     * Promjena statusa SAMO ako je prijava još uvijek u očekivanom statusu ($iz).
+     * Ako ju je netko u međuvremenu promijenio (npr. dva administratora istovremeno),
+     * UPDATE ne pogodi nijedan redak i vraća false – nema "pregaženih" promjena.
+     */
+    public function updateStatus(int $id, string $iz, string $u): bool
+    {
+        $stmt = $this->db->prepare('UPDATE prijave SET status = ? WHERE id = ? AND status = ?');
+        $stmt->execute([$u, $id, $iz]);
+        return $stmt->rowCount() === 1;
+    }
+
+    public function updateHitnost(int $id, string $hitnost): void
+    {
+        $stmt = $this->db->prepare('UPDATE prijave SET hitnost = ? WHERE id = ?');
+        $stmt->execute([$hitnost, $id]);
+    }
+
+    /** Administratorski popis svih prijava s filtrima. Neriješene i najhitnije prve. */
+    public function findForAdmin(array $f, int $limit, int $offset): array
+    {
+        [$where, $params] = $this->adminWhere($f);
+
+        $stmt = $this->db->prepare(
+            "SELECT p.id, p.naslov, p.status, p.hitnost, p.kreirano_u,
+                    c.naziv AS cetvrt, v.naziv AS vrsta,
+                    CONCAT(r.ime, ' ', r.prezime) AS radnik
+               FROM prijave p
+               JOIN gradske_cetvrti c ON c.id = p.cetvrt_id
+               JOIN vrste_problema v  ON v.id = p.vrsta_id
+               LEFT JOIN zadaci z     ON z.prijava_id = p.id
+               LEFT JOIN korisnici r  ON r.id = z.radnik_id
+              WHERE {$where}
+              ORDER BY p.status = 'ZAVRSENO', p.status <> 'CEKA_PROVJERU', p.hitnost DESC, p.kreirano_u
+              LIMIT :limit OFFSET :offset"
+        );
+        foreach ($params as $name => $value) {
+            $stmt->bindValue($name, $value);
+        }
+        $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+        $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+        $stmt->execute();
+
+        return $stmt->fetchAll();
+    }
+
+    public function countForAdmin(array $f): int
+    {
+        [$where, $params] = $this->adminWhere($f);
+
+        $stmt = $this->db->prepare("SELECT COUNT(*) FROM prijave p WHERE {$where}");
+        $stmt->execute($params);
+        return (int) $stmt->fetchColumn();
+    }
+
+    /** Broj prijava po statusu (za administratorski pregled). */
+    public function countByStatus(): array
+    {
+        return $this->db->query('SELECT status, COUNT(*) FROM prijave GROUP BY status')->fetchAll(PDO::FETCH_KEY_PAIR);
+    }
+
+    /**
+     * @param array{status: ?string, hitnost: ?string, cetvrt: ?int, q: string} $f
+     * @return array{0: string, 1: array<string, int|string>}
+     */
+    private function adminWhere(array $f): array
+    {
+        $where = ['1 = 1'];
+        $params = [];
+
+        if ($f['status'] !== null) {
+            $where[] = 'p.status = :status';
+            $params[':status'] = $f['status'];
+        }
+        if ($f['hitnost'] !== null) {
+            $where[] = 'p.hitnost = :hitnost';
+            $params[':hitnost'] = $f['hitnost'];
+        }
+        if ($f['cetvrt'] !== null) {
+            $where[] = 'p.cetvrt_id = :cetvrt';
+            $params[':cetvrt'] = $f['cetvrt'];
+        }
+        if ($f['q'] !== '') {
+            $where[] = 'p.naslov LIKE :q';
+            $params[':q'] = '%' . addcslashes($f['q'], '%_\\') . '%';
+        }
+        return [implode(' AND ', $where), $params];
     }
 
     /** @return array{0: string, 1: array<string, int|string>} */

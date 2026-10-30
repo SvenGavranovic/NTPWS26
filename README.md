@@ -45,6 +45,7 @@ Uz pokrenuti Apache i MySQL, u Git Bashu:
 bash tests/sigurnost.sh   # sigurnosni testovi (SQLi, XSS, CSRF, IDOR, upload, brute force...)
 bash tests/cms.sh         # funkcionalni testovi CMS-a
 bash tests/prijave.sh     # funkcionalni testovi prijava problema
+bash tests/zadaci.sh      # dodjela, kanban, tok statusa i provjera završetka
 ```
 Skripte vraćaju bazu na početne podatke. Opis i rezultati: [docs/TESTOVI.md](docs/TESTOVI.md).
 
@@ -52,5 +53,18 @@ Skripte vraćaju bazu na početne podatke. Opis i rezultati: [docs/TESTOVI.md](d
 
 - [Prijedlog projekta](docs/PRIJEDLOG_PROJEKTA.md)
 - [ER dijagram i pravila brisanja](docs/ER.md)
-- [Priručnik: kako aplikacija radi i recepti](docs/OBJASNJENJA.md)
+- [Upute za korištenje (po ulogama)](docs/UPUTE.md)
 - [Testovi i rezultati](docs/TESTOVI.md)
+
+## Korištenje AI alata
+
+Tijekom razvoja korišten je **Claude Code** (Anthropic), uz pregled i ručno testiranje svake izmjene:
+
+| Faza | Za što |
+|---|---|
+| 1 | prijedlog strukture baze, SQL skripte, dokumentacija |
+| 2 | struktura koda, router, autentifikacija, automatski testovi |
+| 3 | javni dio, profil, stilovi, testovi, provjera licence grba |
+| 4 | CMS (vijesti s uređivačem, kategorije, korisnici), sigurnosna analiza i testovi napada, zaštita od pogađanja lozinke |
+| 5 | prijave problema (transakcija, slike izvan webroota), generator demo slika, testovi |
+| 6 | kanban radnika, state machine statusa, dodjela i provjera završetka, testovi |

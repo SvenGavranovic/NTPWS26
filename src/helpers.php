@@ -109,6 +109,20 @@ function nav_link(string $path, string $label): string
     );
 }
 
+/** Traži li klijent JSON (npr. fetch iz kanbana šalje "Accept: application/json"). */
+function wants_json(): bool
+{
+    return str_contains($_SERVER['HTTP_ACCEPT'] ?? '', 'application/json');
+}
+
+/** JSON odgovor sa statusnim kodom. */
+function json_response(array $data, int $status = 200): void
+{
+    http_response_code($status);
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode($data, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
+}
+
 /** Skriveno CSRF polje za svaki obrazac koji šalje POST. */
 function csrf_field(): string
 {

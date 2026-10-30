@@ -7,7 +7,7 @@
 use App\Core\Auth;
 
 $stavke = Auth::hasRole('admin')
-    ? ['/admin' => 'Pregled', '/admin/vijesti' => 'Vijesti', '/admin/kategorije' => 'Kategorije', '/admin/korisnici' => 'Korisnici']
+    ? ['/admin' => 'Pregled', '/admin/prijave' => 'Prijave', '/admin/vijesti' => 'Vijesti', '/admin/kategorije' => 'Kategorije', '/admin/korisnici' => 'Korisnici']
     : ['/admin/vijesti' => 'Moje vijesti'];
 $trenutna = request_path();
 ?>

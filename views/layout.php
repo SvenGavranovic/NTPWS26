@@ -59,6 +59,8 @@ $flash = Session::pullFlash();
                     <?= nav_link('/admin', 'Administracija') ?>
                 <?php elseif (Auth::hasRole('urednik')): ?>
                     <?= nav_link('/admin/vijesti', 'Moje vijesti') ?>
+                <?php elseif (Auth::hasRole('radnik')): ?>
+                    <?= nav_link('/radnik/zadaci', 'Moji zadaci') ?>
                 <?php endif; ?>
             </ul>
 
@@ -139,6 +141,12 @@ $flash = Session::pullFlash();
         integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
         crossorigin="anonymous"></script>
 <script src="<?= e(asset('js/app.js')) ?>"></script>
+<?php if (!empty($kanban)): ?>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.7/Sortable.min.js"
+            integrity="sha384-DgmC6Xe2bSN2WjTDXzWYbUbxyhNP+NNkGDR/g78pCXV7E7rcVTGxVg0uIVCUUcBc"
+            crossorigin="anonymous"></script>
+    <script src="<?= e(asset('js/kanban.js')) ?>"></script>
+<?php endif; ?>
 <?php if (!empty($urednik)): ?>
     <script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js"
             integrity="sha384-utBUCeG4SYaCm4m7GQZYr8Hy8Fpy3V4KGjBZaf4WTKOcwhCYpt/0PfeEe3HNlwx8"

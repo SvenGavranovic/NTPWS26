@@ -13,6 +13,7 @@ declare(strict_types=1);
  */
 
 use App\Controllers\AdminController;
+use App\Controllers\AdminPrijavaController;
 use App\Controllers\AuthController;
 use App\Controllers\CategoryController;
 use App\Controllers\HomeController;
@@ -21,6 +22,7 @@ use App\Controllers\NewsController;
 use App\Controllers\PrijavaController;
 use App\Controllers\ProfileController;
 use App\Controllers\UserAdminController;
+use App\Controllers\ZadatakController;
 
 $samoAdmin = ['uloge' => ['admin']];
 $urednistvo = ['uloge' => ['urednik', 'admin']];
@@ -50,6 +52,11 @@ $router->get('/prijave/moje',                  [PrijavaController::class, 'index
 $router->get('/prijave/{id}',                  [PrijavaController::class, 'show'],   ['auth' => true]);
 $router->get('/prijave/{id}/slike/{slikaId}',  [PrijavaController::class, 'image'],  ['auth' => true]);
 
+// Radnik: kanban i radnje nad VLASTITIM zadacima ({id} = id prijave)
+$router->get('/radnik/zadaci',               [ZadatakController::class, 'index'],  ['uloge' => ['radnik']]);
+$router->post('/radnik/zadaci/{id}/zapocni', [ZadatakController::class, 'start'],  ['uloge' => ['radnik']]);
+$router->post('/radnik/zadaci/{id}/zavrsi',  [ZadatakController::class, 'submit'], ['uloge' => ['radnik']]);
+
 // CMS: vijesti (urednik samo svoje – provjera u NewsAdminController, admin sve)
 $router->get('/admin/vijesti',              [NewsAdminController::class, 'index'],   $urednistvo);
 $router->get('/admin/vijesti/nova',         [NewsAdminController::class, 'create'],  $urednistvo);
@@ -60,6 +67,12 @@ $router->post('/admin/vijesti/{id}/obrisi', [NewsAdminController::class, 'destro
 
 // Administracija (samo admin)
 $router->get('/admin', [AdminController::class, 'index'], $samoAdmin);
+
+$router->get('/admin/prijave',                [AdminPrijavaController::class, 'index'],   $samoAdmin);
+$router->post('/admin/prijave/{id}/dodjela',  [AdminPrijavaController::class, 'assign'],  $samoAdmin);
+$router->post('/admin/prijave/{id}/hitnost',  [AdminPrijavaController::class, 'hitnost'], $samoAdmin);
+$router->post('/admin/prijave/{id}/odobri',   [AdminPrijavaController::class, 'approve'], $samoAdmin);
+$router->post('/admin/prijave/{id}/vrati',    [AdminPrijavaController::class, 'reject'],  $samoAdmin);
 
 $router->get('/admin/kategorije',              [CategoryController::class, 'index'],   $samoAdmin);
 $router->post('/admin/kategorije',             [CategoryController::class, 'store'],   $samoAdmin);

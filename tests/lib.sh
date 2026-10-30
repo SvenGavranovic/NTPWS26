@@ -18,7 +18,7 @@ fail() { echo "  PALO  $1"; PALO=$((PALO+1)); }
 naslov() { echo; echo "== $1"; }
 
 # SQL nad testnom bazom (bez zaglavlja stupaca)
-SQL() { "$MYSQL" -u root zagreb_prijave -N; }
+SQL() { "$MYSQL" -u root --default-character-set=utf8mb4 zagreb_prijave -N; }
 
 # Vraća bazu u početno stanje (schema + seed + demo slike prijava). BRIŠE SVE PODATKE!
 # Slike prijava koje su nastale tijekom testova brišu se (ostaju samo demo-*.png).

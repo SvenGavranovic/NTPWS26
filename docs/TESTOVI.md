@@ -12,6 +12,7 @@ Potrebno je:
 bash tests/sigurnost.sh     # napadi (OWASP Top 10)
 bash tests/cms.sh           # funkcionalnost CMS-a (faza 4)
 bash tests/prijave.sh       # prijave problema (faza 5)
+bash tests/zadaci.sh        # dodjela, kanban, state machine (faza 6)
 ```
 
 > **Upozorenje:** skripte na početku i na kraju vraćaju bazu na početne podatke (`schema.sql` + `seed.sql`). Pokreću se samo na razvojnoj bazi.
@@ -22,7 +23,7 @@ Svaka sljedeća faza (prijave, kanban, API, TomTom) dodaje nove slučajeve u `te
 
 ## Sigurnosni testovi – `tests/sigurnost.sh`
 
-Stanje nakon faze 5: **138 / 138 prošlo** (30. 10. 2026.)
+Stanje nakon faze 6: **152 / 152 prošlo** (30. 10. 2026.)
 
 | # | Napad | Primjer zahtjeva | Očekivano | Dobiveno |
 |---|---|---|---|---|
@@ -62,9 +63,14 @@ Stanje nakon faze 5: **138 / 138 prošlo** (30. 10. 2026.)
 | 10 | Upload uz prijavu | bez CSRF tokena; `shell.php`; `shell.jpg` s lažnim tipom; SVG; > 5 MB | 403 / 422, ništa spremljeno | ✔ |
 | 10 | Pohranjeni XSS u prijavi | `<img onerror>` u naslovu, `<script>` u opisu, `"><svg onload>` u adresi | spremljeno, ali escapeano (i kod admina) | ✔ |
 | 10 | SQLi u filtru statusa | `status=PRIJAVLJENO' OR '1'='1` | filtar ignoriran | ✔ |
-| 11 | Brute force | 5 krivih lozinki pa ispravna | 429 + `Retry-After: 900` | ✔ |
-| 11 | Brute force na nepostojeći račun | 5 pokušaja | 429 (ne otkriva postoji li račun) | ✔ |
-| 11 | Password spraying | 20 pokušaja s iste IP adrese na razne račune | 429 i za ostale račune | ✔ |
+| 11 | Tuđi zadatak | radnik Marko započinje Ivanov zadatak (obrazac i JSON) | odbijeno; 409 bez otkrivanja statusa | ✔ |
+| 11 | Eskalacija u toku rada | korisnica → radnička ruta; urednica → dodjela; radnik sam odobrava svoj posao | 403, status nepromijenjen | ✔ |
+| 11 | CSRF i SQLi u toku rada | vraćanje s lažnim tokenom; `radnik_id=1 OR 1=1` | 403 / dodjela odbijena | ✔ |
+| 11 | Upload i mass assignment pri završetku | web shell kao slika „poslije”; podmetnuti `tip=prije`, `ucitao_id=1`, `status=ZAVRSENO` | odbijeno / ignorirano (slika je „poslije”, učitao radnik, status ČEKA PROVJERU) | ✔ |
+| 11 | XSS u napomeni i razlogu vraćanja | `<script>`, `<img onerror>` | prikazano kao tekst | ✔ |
+| 12 | Brute force | 5 krivih lozinki pa ispravna | 429 + `Retry-After: 900` | ✔ |
+| 12 | Brute force na nepostojeći račun | 5 pokušaja | 429 (ne otkriva postoji li račun) | ✔ |
+| 12 | Password spraying | 20 pokušaja s iste IP adrese na razne račune | 429 i za ostale račune | ✔ |
 | – | Stabilnost | svi gornji napadi | nijedna pogreška 500 u `storage/logs/app.log` | ✔ |
 
 ### Poznata ograničenja (svjesno prihvaćena)
@@ -107,6 +113,22 @@ Stanje nakon faze 5: **62 / 62 prošlo** (30. 10. 2026.)
 | Uspješna prijava | status `PRIJAVLJENO`, hitnost `srednja`, vlasnik iz sesije (podmetnuto ignorirano); vrijeme sada; zapis slike i prvi zapis povijesti; datoteka izvan webroota s nasumičnim imenom; opis s `<br>`, `<script>` escapean; profil broji 6 prijava | ✔ |
 | Transakcija | okidač u bazi ruši 3. upit → 500, a u bazi nema prijave ni slike, na disku nema datoteke (ROLLBACK) | ✔ |
 | Zatrpavanje | 10. prijava u sat vremena prolazi, 11. → 429 s porukom | ✔ |
+
+## Funkcionalni testovi toka rada – `tests/zadaci.sh`
+
+Stanje nakon faze 6: **85 / 85 prošlo** (30. 10. 2026.)
+
+| Područje | Scenariji | Dobiveno |
+|---|---|---|
+| Pristup | gost, korisnik i admin na kanban; radnik i korisnik na `/admin/prijave` → 303/403 | ✔ |
+| Kanban | Ivan vidi točno svoja 3 otvorena zadatka, bez Markovih; SortableJS sa SRI; stupac „U radu” prima samo iz „Dodijeljeno” i „Vraćeno”; gumbi rade i bez JS-a | ✔ |
+| Popis za admina | 10 prijava; filtri status, hitnost, četvrt; nepoznate vrijednosti ignorirane; na vrhu prijava koja čeka provjeru; kartica na pregledu | ✔ |
+| Dodjela | dodjela Ivanu (status, zadatak, povijest s komentarom); odbijena dodjela korisnici, nepostojećem radniku i završenoj prijavi; preraspodjela Marku (i dalje jedan zadatak; Ivan gubi pristup → 403); ponovna dodjela istom radniku → poruka | ✔ |
+| Hitnost | admin mijenja; nepostojeća vrijednost i završena prijava odbijeni; radnik i korisnik → 403 | ✔ |
+| Početak rada | obrazac (303) i kanban fetch (200 JSON); ponovni prijelaz i tuđi zadatak → 409; bez CSRF-a → 403 | ✔ |
+| Slanje na provjeru | bez slike i s prekratkom napomenom odbijeno (slika se ne sprema); ispravno: status, slika „poslije”, napomena (UTF-8), povijest; radnik ne može odobriti (403); građanin ne vidi neodobrenu sliku | ✔ |
+| Odobrenje i vraćanje | odobrenje iz „U radu” odbijeno; odobrenje → ZAVRŠENO, građanin vidi sliku; vraćanje bez razloga odbijeno; s razlogom → radnik ga vidi, građanin ne; ciklus dorade do ZAVRŠENO; građanin vidi samo zadnju sliku „poslije” | ✔ |
+| State machine | svaka radnja (započni, na provjeru, odobri, vrati, radnik → odobri) isprobana iz svih 6 statusa; prolazi samo iz dopuštenih | ✔ |
 
 ## Testovi prethodnih faza
 

@@ -129,6 +129,25 @@ final class Korisnik
         return (int) $stmt->fetchColumn();
     }
 
+    /**
+     * Aktivni radnici s brojem otvorenih zadataka (za odabir pri dodjeli –
+     * administrator vidi koliko je tko opterećen).
+     */
+    public function activeWorkers(): array
+    {
+        return $this->db->query(
+            "SELECT k.id, CONCAT(k.ime, ' ', k.prezime) AS ime,
+                    COUNT(p.id) AS otvoreno
+               FROM korisnici k
+               JOIN uloge u ON u.id = k.uloga_id AND u.kod = 'radnik'
+               LEFT JOIN zadaci z  ON z.radnik_id = k.id
+               LEFT JOIN prijave p ON p.id = z.prijava_id AND p.status <> 'ZAVRSENO'
+              WHERE k.aktivan = 1
+              GROUP BY k.id, k.ime, k.prezime
+              ORDER BY k.prezime, k.ime"
+        )->fetchAll();
+    }
+
     /** kod => naziv svih uloga (redoslijed po id-u: od najmanjih ovlasti). */
     public function roles(): array
     {

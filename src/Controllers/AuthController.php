@@ -45,6 +45,7 @@ final class AuthController
         redirect(match (true) {
             Auth::hasRole('admin')   => '/admin',
             Auth::hasRole('urednik') => '/admin/vijesti',
+            Auth::hasRole('radnik')  => '/radnik/zadaci',
             default                  => '/',
         });
     }

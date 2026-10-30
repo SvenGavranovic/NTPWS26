@@ -310,7 +310,42 @@ code -b "$ANA" -G --data-urlencode "status=PRIJAVLJENO' OR '1'='1" "$B/prijave/m
 eq    "SQLi u filtru statusa → filtar ignoriran (6 Aninih prijava)" "$(grep -c 'list-group-item-action' "$T/body")" "6"
 
 # ---------------------------------------------------------------------
-naslov "11. Pogađanje lozinke – brute force (A07)"
+naslov "11. Tok rada: kanban, dodjela, odobrenje (A01)"
+# Status smije mijenjati samo propisana uloga i samo dodijeljeni radnik.
+# ---------------------------------------------------------------------
+st() { echo "SELECT status FROM prijave WHERE id=$1" | SQL; }
+IVAN=$(prijava radnik.ivan@zagreb-prijave.test)
+MARKO=$(prijava radnik.marko@zagreb-prijave.test)
+LEA=$(prijava urednik.lea@zagreb-prijave.test)
+tM=$(tok "$MARKO" /radnik/zadaci); tI=$(tok "$IVAN" /radnik/zadaci)
+code -b "$MARKO" -X POST --data-urlencode "_csrf=$tM" "$B/radnik/zadaci/3/zapocni" >/dev/null
+eq    "radnik Marko započinje Ivanov zadatak 3" "$(st 3)" "DODIJELJENO"
+check "Marko → Ivanov zadatak preko JSON-a" "$(code -b "$MARKO" -X POST -H 'Accept: application/json' -H "X-CSRF-Token: $tM" "$B/radnik/zadaci/3/zapocni")" "409"
+hasnt "  → odgovor ne otkriva status tuđeg zadatka" 'Dodijeljeno'
+check "korisnica Ana → radnička ruta" "$(code -b "$ANA" -X POST --data-urlencode "_csrf=$(tok "$ANA" /prijave/moje)" "$B/radnik/zadaci/3/zapocni")" "403"
+check "urednica Lea → dodjela prijave" "$(code -b "$LEA" -X POST --data-urlencode "_csrf=$(tok "$LEA" /admin/vijesti)" -d radnik_id=4 "$B/admin/prijave/1/dodjela")" "403"
+check "radnik Marko → sam odobrava svoj posao (6)" "$(code -b "$MARKO" -X POST --data-urlencode "_csrf=$tM" "$B/admin/prijave/6/odobri")" "403"
+eq    "  → prijava 6 i dalje čeka provjeru" "$(st 6)" "CEKA_PROVJERU"
+check "admin: vraćanje s krivim CSRF tokenom" "$(code -b "$ADMIN" -X POST -d '_csrf=lazni&komentar=Pokusaj' "$B/admin/prijave/6/vrati")" "403"
+tA=$(tok "$ADMIN" /admin/prijave)
+code -b "$ADMIN" -X POST --data-urlencode "_csrf=$tA" --data-urlencode 'radnik_id=1 OR 1=1' "$B/admin/prijave/2/dodjela" >/dev/null
+eq    "dodjela s radnik_id='1 OR 1=1' (admin nije radnik)" "$(st 2)" "PRIJAVLJENO"
+
+code -b "$IVAN" -X POST --data-urlencode "_csrf=$tI" "$B/radnik/zadaci/3/zapocni" >/dev/null
+prije=$(ls "$KORIJEN/storage/uploads/prijave" | wc -l)
+code -b "$IVAN" -X POST -F "_csrf=$tI" -F 'napomena=Pokušaj s web shellom.' -F "slika=@$TW/shell.jpg;type=image/jpeg" "$B/radnik/zadaci/3/zavrsi" >/dev/null
+eq    "slika 'poslije': web shell odbijen, status ostaje" "$(st 3)/$(ls "$KORIJEN/storage/uploads/prijave" | wc -l)" "U_RADU/$prije"
+code -b "$IVAN" -X POST -F "_csrf=$tI" --form-string 'napomena=<script>alert("napomena")</script> gotovo' \
+    -F tip=prije -F ucitao_id=1 -F status=ZAVRSENO -F "slika=@$TW/ok.png" "$B/radnik/zadaci/3/zavrsi" >/dev/null
+eq    "mass assignment: tip/ucitao_id/status iz obrasca ignorirani" "$(st 3)/$(echo "SELECT CONCAT(tip,'/',ucitao_id) FROM prijava_slike WHERE prijava_id=3 ORDER BY id DESC LIMIT 1" | SQL)" "CEKA_PROVJERU/poslije/4"
+code -b "$ADMIN" -X POST --data-urlencode "_csrf=$tA" --data-urlencode 'komentar=<img src=x onerror=alert(1)> ponovi' "$B/admin/prijave/3/vrati" >/dev/null
+code -b "$IVAN" "$B/prijave/3" >/dev/null
+hasnt "XSS u napomeni radnika escapean" '<script>alert("napomena")'
+hasnt "XSS u razlogu vraćanja escapean" '<img src=x'
+has   "  → razlog je ipak prikazan (kao tekst)" '&lt;img src=x'
+
+# ---------------------------------------------------------------------
+naslov "12. Pogađanje lozinke – brute force (A07)"
 # Na kraju, jer blokada po IP-u utječe na sve daljnje prijave s ovog računala.
 # ---------------------------------------------------------------------
 echo "DELETE FROM pokusaji_prijave" | SQL

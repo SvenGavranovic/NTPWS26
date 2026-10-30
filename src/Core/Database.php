@@ -31,6 +31,10 @@ final class Database
                 // PRAVI prepared statements: upit i podaci idu bazi odvojeno,
                 // pa podatak nikad ne može postati dio SQL naredbe (SQL injection)
                 PDO::ATTR_EMULATE_PREPARES   => false,
+                // rowCount() za UPDATE vraća broj PRONAĐENIH redaka (WHERE), a ne samo
+                // promijenjenih. Inače bi UPDATE na istu vrijednost (npr. preraspodjela:
+                // DODIJELJENO → DODIJELJENO) izgledao kao da redak nije pronađen.
+                PDO::MYSQL_ATTR_FOUND_ROWS   => true,
             ]);
 
             // Ista vremenska zona u PHP-u i u bazi (CURRENT_TIMESTAMP, NOW())

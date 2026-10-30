@@ -8,6 +8,7 @@ use App\Core\Auth;
 use App\Core\Paginator;
 use App\Core\Session;
 use App\Core\View;
+use App\Models\Korisnik;
 use App\Models\PovijestStatusa;
 use App\Models\Prijava;
 use App\Models\PrijavaSlika;
@@ -80,19 +81,33 @@ final class PrijavaController
         }
         $korisnik = Auth::user();
 
+        $sluzba = PrijavaService::isStaff($korisnik, $prijava);
+
         // Slike koje ovaj korisnik smije vidjeti (građanin ne vidi neodobrenu sliku "poslije")
         $slike = array_values(array_filter(
             (new PrijavaSlika())->forReport($id),
             static fn (array $s): bool => PrijavaService::canSeeImage($korisnik, $prijava, $s)
         ));
+        if (!$sluzba) {
+            // Ako je posao bio vraćen pa ponovno predan, građanin vidi samo zadnju (odobrenu) sliku "poslije"
+            $poslije = array_keys(array_filter($slike, static fn (array $s): bool => $s['tip'] === 'poslije'));
+            foreach (array_slice($poslije, 0, -1) as $i) {
+                unset($slike[$i]);
+            }
+        }
 
         View::render('prijave/show', [
-            'title'    => $prijava['naslov'],
-            'prijava'  => $prijava,
-            'slike'    => $slike,
-            'povijest' => (new PovijestStatusa())->forReport($id),
-            'sluzba'   => PrijavaService::isStaff($korisnik, $prijava),
-            'mojId'    => (int) $korisnik['id'],
+            'title'     => $prijava['naslov'],
+            'prijava'   => $prijava,
+            'slike'     => $slike,
+            'povijest'  => (new PovijestStatusa())->forReport($id),
+            'sluzba'    => $sluzba,
+            'mojId'     => (int) $korisnik['id'],
+            'jeAdmin'   => $korisnik['uloga'] === 'admin',
+            // dodijeljeni radnik vidi gumbe za svoj zadatak
+            'jeRadnik'  => $korisnik['uloga'] === 'radnik' && (int) $prijava['radnik_id'] === (int) $korisnik['id'],
+            'radnici'   => $korisnik['uloga'] === 'admin' ? (new Korisnik())->activeWorkers() : [],
+            'maxMb'     => intdiv(PrijavaService::MAX_SLIKA, 1024 * 1024),
         ]);
     }
 

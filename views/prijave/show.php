@@ -5,6 +5,9 @@
  * @var array $povijest  promjene statusa, kronološki
  * @var bool $sluzba     admin ili dodijeljeni radnik (vidi interne komentare i imena)
  * @var int $mojId
+ * @var bool $jeAdmin, $jeRadnik
+ * @var array $radnici
+ * @var int $maxMb
  */
 
 use App\Services\StatusPrijave;
@@ -14,7 +17,11 @@ $vlastita = (int) $prijava['korisnik_id'] === $mojId;
 ?>
 <nav aria-label="breadcrumb">
     <ol class="breadcrumb">
-        <?php if ($vlastita): ?>
+        <?php if ($jeAdmin): ?>
+            <li class="breadcrumb-item"><a href="<?= e(url('/admin/prijave')) ?>">Prijave</a></li>
+        <?php elseif ($jeRadnik): ?>
+            <li class="breadcrumb-item"><a href="<?= e(url('/radnik/zadaci')) ?>">Moji zadaci</a></li>
+        <?php elseif ($vlastita): ?>
             <li class="breadcrumb-item"><a href="<?= e(url('/prijave/moje')) ?>">Moje prijave</a></li>
         <?php endif; ?>
         <li class="breadcrumb-item active" aria-current="page">Prijava #<?= (int) $prijava['id'] ?></li>
@@ -46,6 +53,8 @@ $vlastita = (int) $prijava['korisnik_id'] === $mojId;
     </div>
 
     <div class="col-lg-5">
+        <?php require __DIR__ . '/_radnje.php'; ?>
+
         <div class="card mb-4">
             <div class="card-body">
                 <dl class="row mb-0">
@@ -63,7 +72,9 @@ $vlastita = (int) $prijava['korisnik_id'] === $mojId;
                     <dd class="col-7"><?= StatusPrijave::hitnostBadge($prijava['hitnost']) ?></dd>
                     <?php if ($sluzba): ?>
                         <dt class="col-5 text-body-secondary fw-normal">Prijavitelj</dt>
-                        <dd class="col-7 mb-0"><?= e($prijava['prijavitelj']) ?></dd>
+                        <dd class="col-7"><?= e($prijava['prijavitelj']) ?></dd>
+                        <dt class="col-5 text-body-secondary fw-normal">Radnik</dt>
+                        <dd class="col-7 mb-0"><?= $prijava['radnik'] ? e($prijava['radnik']) : '—' ?></dd>
                     <?php endif; ?>
                 </dl>
             </div>
