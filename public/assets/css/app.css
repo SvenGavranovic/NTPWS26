@@ -1,0 +1,5 @@
+/* Vlastiti stilovi uz Bootstrap 5 */
+
+.navbar .navbar-text .badge {
+    font-weight: 500;
+}

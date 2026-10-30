@@ -1,2 +1,40 @@
-# NTPWS26
-GitHub repo za projekt iz predmeta Napredne tehnike projektiranja web servisa
+# NTPWS26 – Zagreb Prijave
+
+GitHub repo za projekt iz predmeta Napredne tehnike projektiranja web servisa.
+Web aplikacija za prijavu komunalnih problema, pregled radova i stanja prometa u Gradu Zagrebu.
+
+## Zahtjevi
+
+- PHP 8.1+ (razvijano na 8.3) s ekstenzijama `pdo_mysql`, `mbstring`, `fileinfo`, `openssl`, `curl`
+- MariaDB 10.4+ ili MySQL 8.0.16+
+- Apache s `mod_rewrite` i `AllowOverride All` (XAMPP to ima zadano)
+- [Composer](https://getcomposer.org/)
+
+## Pokretanje (XAMPP)
+
+1. Projekt smjestiti u `C:\xampp\htdocs\zagreb-prijave`.
+2. U XAMPP Control Panelu pokrenuti **Apache** i **MySQL**.
+3. Instalirati ovisnosti:
+   ```
+   composer install
+   ```
+4. Napraviti konfiguraciju i po potrebi je urediti:
+   ```
+   copy .env.example .env
+   ```
+5. Napraviti bazu i testne podatke:
+   ```
+   cmd /c "C:\xampp\mysql\bin\mysql.exe -u root < database\schema.sql"
+   cmd /c "C:\xampp\mysql\bin\mysql.exe -u root < database\seed.sql"
+   ```
+6. Otvoriti http://localhost/zagreb-prijave
+
+Ako projekt nije u `htdocs/zagreb-prijave`, u `.env` treba promijeniti `APP_URL`.
+
+Pristupni podaci za testne račune predaju se kroz LMS.
+
+## Dokumentacija
+
+- [Prijedlog projekta](docs/PRIJEDLOG_PROJEKTA.md)
+- [ER dijagram i pravila brisanja](docs/ER.md)
+- [Objašnjenja odluka po fazama](docs/OBJASNJENJA.md)

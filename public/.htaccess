@@ -1,0 +1,8 @@
+# Front controller: sve što nije postojeća datoteka (CSS, JS, slika)
+# obrađuje public/index.php.
+
+Options -Indexes
+
+RewriteEngine On
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteRule ^ index.php [QSA,L]

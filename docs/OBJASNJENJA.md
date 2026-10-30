@@ -153,3 +153,136 @@ Primjer gdje je **transakcija obavezna**: dodjela zadatka mijenja tri tablice (`
 ### Korištenje AI alata
 
 U fazi 1 korišten je Claude Code (Anthropic) za izradu prijedloga strukture baze, SQL skripti i dokumentacije. Student je pregledao sve odluke i provjerio skripte uvozom u lokalnu bazu.
+
+---
+
+## Faza 2 – Struktura koda, router, registracija, prijava, uloge, CSRF
+
+### Struktura
+
+```
+.htaccess                 sve zahtjeve šalje u public/ (ništa izvan public/ nije dostupno)
+public/
+  .htaccess               sve što nije postojeća datoteka → index.php
+  index.php               FRONT CONTROLLER – jedina PHP datoteka dostupna iz preglednika
+  assets/css/app.css
+config/routes.php         popis svih ruta i tko im smije pristupiti
+src/
+  helpers.php             e(), url(), redirect(), post(), csrf_field()...
+  Core/                   "mini framework": Router, View, Database, Session, Csrf, Auth
+  Controllers/            prima zahtjev → poziva servis → bira odgovor
+  Services/AuthService    poslovna logika (validacija, hashiranje, pravila)
+  Models/Korisnik         SAMO SQL upiti nad tablicom korisnici
+views/                    HTML predlošci (layout + pogledi)
+storage/logs/app.log      zapisnik pogrešaka (nije u gitu)
+```
+
+**Zašto ovako?** Upute traže da se odvoje konfiguracija (`.env`, `config/`), rad s bazom (`Models`), poslovna logika (`Services`) i prikaz (`views`). Kontroler ih samo povezuje.
+
+**Pravilo imenovanja:** tehnički pojmovi su na engleskom (Router, Controller, `loginForm`, `render`), a pojmovi iz domene na hrvatskom (Korisnik, uloge, `aktivan`, `/racun/prijava`). Tako se kod čita kao i svaki PHP projekt, a nazivi odgovaraju bazi.
+
+### Tok podataka: prijava korisnika (primjer za obranu)
+
+1. Preglednik šalje `POST /zagreb-prijave/racun/prijava` s poljima `email`, `lozinka` i `_csrf`.
+2. **`.htaccess`** u korijenu prepisuje putanju u `public/racun/prijava`. `public/.htaccess` vidi da ta datoteka ne postoji i šalje zahtjev u `public/index.php`.
+3. **`index.php`**:
+   - učitava Composer autoloader i `.env`;
+   - postavlja rukovatelje pogreškama i sigurnosna zaglavlja;
+   - pokreće sesiju (`Session::start`);
+   - učitava `config/routes.php` i poziva `Router::dispatch('POST', '/racun/prijava')`.
+4. **`Router`** pronalazi rutu i prije kontrolera provjerava:
+   - je li CSRF token ispravan (inače 403);
+   - je li ruta označena kao `gost` (prijavljeni se preusmjeravaju na početnu).
+5. **`AuthController::login`** čita polja preko `post()` i poziva `AuthService::attemptLogin`.
+6. **`AuthService`**:
+   - pretvara e-mail u mala slova;
+   - preko **`Korisnik::findForLogin`** dohvaća korisnika: `SELECT ... WHERE email = ?` (prepared statement);
+   - poziva `password_verify` (i kad korisnik ne postoji, vidi niže);
+   - provjerava je li račun aktivan;
+   - po potrebi obnavlja hash lozinke i bilježi zadnju prijavu.
+7. Ako prijava ne uspije, kontroler prikazuje obrazac s generičkom porukom (status 401).
+   Ako uspije, **`Auth::login`** poziva `session_regenerate_id(true)`, sprema samo `korisnik_id` u sesiju i stvara novi CSRF token. Zatim preusmjerava (303) na `/admin` ili na početnu.
+8. Pri sljedećem zahtjevu **`Auth::user()`** iz baze ponovno čita korisnika, njegovu ulogu i polje `aktivan`.
+
+### Kako radi router
+
+- Rute se definiraju u `config/routes.php`: `$router->get('/admin', [AdminController::class, 'index'], ['uloge' => ['admin']]);`
+- `{id}` u putanji postaje regex `(?P<id>\d+)`, dakle prihvaćaju se samo brojevi. Vrijednost se kontroleru predaje kao cijeli broj.
+- Ako putanja postoji, ali za drugu metodu, odgovor je **405** sa zaglavljem `Allow`. Ako putanja ne postoji, odgovor je **404**.
+- **Zaštite su opcije rute, a ne kod u svakom kontroleru.** Tako se ne mogu zaboraviti, a na jednom mjestu (`routes.php`) vidi se tko smije što.
+  - `auth`: neprijavljeni korisnik se preusmjerava na prijavu;
+  - `uloge`: kriva uloga dobiva **403**;
+  - `gost`: prijavljeni korisnik se preusmjerava na početnu.
+- **CSRF se provjerava za SVAKI zahtjev koji nije GET**, automatski. GET zahtjevi zato nikad ne smiju mijenjati podatke.
+
+### Sigurnosne odluke
+
+| Prijetnja | Zaštita | Gdje |
+|---|---|---|
+| Pristup `.env`, `src/`, `database/` iz preglednika | Sve se prepisuje u `public/`. Testirano: `/.env` vraća 404 | `.htaccess` |
+| SQL injection | Prepared statements, `ATTR_EMULATE_PREPARES = false` (pravi prepared statements na strani baze) | `Database`, `Korisnik` |
+| Krađa lozinki iz baze | `password_hash` (bcrypt, sol), `password_needs_rehash` | `AuthService` |
+| bcrypt odsijeca lozinku nakon 72 bajta | Validacija odbija duže lozinke | `AuthService::validatePassword` |
+| Otkrivanje postojećih e-mailova pri prijavi | Ista poruka za nepostojeći e-mail i pogrešnu lozinku. `password_verify` se izvodi i za nepostojeći e-mail (lažni hash), pa vrijeme odgovora ne otkriva ništa | `AuthService::attemptLogin` |
+| Session fixation | `session_regenerate_id(true)` nakon prijave, `use_strict_mode`, ID samo u kolačiću | `Auth::login`, `Session::start` |
+| Krađa kolačića sesije preko XSS-a | `HttpOnly` kolačić | `Session::start` |
+| CSRF | Token u sesiji (`random_bytes(32)`), skriveno polje u svakom obrascu, `hash_equals`, automatska provjera u routeru, kolačić `SameSite=Lax` | `Csrf`, `Router` |
+| CSRF odjava (tuđa stranica odjavljuje korisnika) | Odjava je POST s tokenom, a ne poveznica | `layout.php`, `routes.php` |
+| XSS | Svaki ispis ide kroz `e()` (`htmlspecialchars` s `ENT_QUOTES`, UTF-8). Validacija imena dopušta samo slova | `helpers.php`, pogledi |
+| Korisnik si dodjeljuje ulogu admin | Uloga je fiksna konstanta u servisu. Kontroler čita samo poznata polja, pa se podmetnuto `uloga=admin` ignorira (testirano) | `AuthService::OSNOVNA_ULOGA` |
+| Deaktivirani korisnik ostaje prijavljen | Uloga i `aktivan` čitaju se iz baze pri svakom zahtjevu. Deaktiviranom korisniku sesija se uništava | `Auth::user` |
+| Skrivanje gumba kao jedina zaštita | Router vraća 403 i kad netko ručno upiše `/admin` | `Router::passesGuards` |
+| Curenje SQL-a i putanja u porukama | `display_errors` je isključen kad `APP_DEBUG=false`. Korisnik vidi generičku poruku, a detalji idu u `storage/logs/app.log` | `index.php` |
+| Clickjacking i MIME sniffing | `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff` | `index.php` |
+| Izmijenjen Bootstrap na CDN-u | SRI hash (`integrity`) izračunat iz stvarnih datoteka | `layout.php` |
+| Slanje niza umjesto teksta (`email[]=x`) | `post()` vraća prazan string, pa korisnik dobiva validacijsku pogrešku umjesto greške 500 | `helpers.php` |
+| Dvije istovremene registracije s istim e-mailom | `UNIQUE` u bazi. Greška 23000 se hvata i prikazuje kao „e-mail već postoji” | `AuthService::register` |
+
+**Svjesno odgođeno ili izostavljeno:**
+- ograničenje broja pokušaja prijave (brute force) moguće je dodati kao nadogradnju;
+- isticanje sesije zbog neaktivnosti;
+- `Strict-Transport-Security` (HSTS) ima smisla tek na javnoj HTTPS instalaciji.
+
+### Statusni kodovi u HTML dijelu
+
+| Situacija | Kod |
+|---|---|
+| Pogrešna lozinka | 401 (obrazac se ponovno prikazuje) |
+| Neispravni podaci pri registraciji | 422 (obrazac s porukama uz polja) |
+| Uspješan POST | 303 + preusmjeravanje (uzorak Post/Redirect/Get, pa osvježavanje stranice ne šalje obrazac ponovno) |
+| Kriva uloga / neispravan CSRF token | 403 |
+| Nepostojeća stranica / kriva metoda | 404 / 405 |
+
+### Provedeni testovi (cURL, automatski)
+
+| Scenarij | Očekivano | Dobiveno |
+|---|---|---|
+| `GET /.env`, `/src/helpers.php`, `/composer.json` | 404 | 404 |
+| `/admin` bez prijave | preusmjeravanje na prijavu | 303 → `/racun/prijava` |
+| `GET /racun/odjava` | 405 | 405 |
+| POST bez CSRF tokena | 403 | 403 |
+| Prijava s pogrešnom lozinkom / nepostojećim e-mailom | 401, ista poruka | 401, ista poruka |
+| Prijava deaktiviranog računa | 401, poruka o deaktivaciji | 401 |
+| Prijava admina s e-mailom VELIKIM slovima | uspjeh | 303 → `/admin` |
+| Korisnik i urednik otvaraju `/admin` | 403 | 403 |
+| Deaktivacija dok je korisnik prijavljen | odjava pri sljedećem kliku | odjavljen, poruka prikazana |
+| Registracija: prazna / postojeći e-mail / slaba lozinka / `email[]` / `<script>` u imenu | 422 | 422, skripta escapeana |
+| Registracija s podmetnutim `uloga=admin` | uloga `korisnik` | `korisnik` |
+| Registracija s „đ” u prezimenu | ispravno spremljeno (UTF-8) | `C4 91` u bazi |
+| Odjava, zatim `/admin` | traži prijavu | 303 → `/racun/prijava` |
+
+### Moguća pitanja na obrani
+
+- *Što je front controller i zašto?* Jedna ulazna točka (`public/index.php`) za sve zahtjeve. Konfiguracija, sesija, sigurnosna zaglavlja i provjere ovlasti zato se izvode na jednom mjestu, za svaki zahtjev.
+- *Zašto je u sesiji samo ID, a ne cijeli korisnik?* Da bi promjena uloge ili deaktivacija vrijedile odmah. Podatak u sesiji bi bio zastario.
+- *Što radi `session_regenerate_id(true)`?* Daje novi ID sesije i briše stari. Ako je napadač unaprijed podmetnuo ID (session fixation), nakon prijave on više ne vrijedi.
+- *Zašto CSRF ako postoji `SameSite=Lax`?* Dubinska obrana. Stariji preglednici ne poštuju SameSite, a upute izričito traže CSRF zaštitu.
+- *Zašto je odjava POST?* GET ne smije mijenjati stanje. Odjavu preko GET-a mogla bi pokrenuti bilo koja slika `<img src=".../odjava">` na tuđoj stranici.
+- *Zašto ista poruka za krivi e-mail i krivu lozinku?* Da napadač ne može doznati koji su e-mailovi registrirani. Iz istog razloga postoji i lažni hash: vrijeme odgovora je jednako u oba slučaja.
+- *Zašto je registracija preko 303 preusmjeravanja?* Uzorak Post/Redirect/Get: osvježavanje stranice ne šalje obrazac ponovno.
+- *Kako PDO štiti od SQL injectiona?* Upit s `?` se šalje bazi odvojeno od podataka. Baza podatke nikad ne izvršava kao SQL.
+- *Zašto `htmlspecialchars` s `ENT_QUOTES`?* Escapea i navodnike, pa je siguran i unutar HTML atributa (`value="..."`).
+
+### Korištenje AI alata
+
+U fazi 2 Claude Code je korišten za izradu strukture koda, routera, autentifikacije i automatskih cURL testova. Student je pregledao kod i testirao prijavu i registraciju u pregledniku.

@@ -1,0 +1,9 @@
+# Projekt je u htdocs/, pa bi bez ovoga preglednik mogao otvoriti
+# .env, src/, database/ itd. Zato SVE zahtjeve preusmjeravamo u public/,
+# a izvan public/ ništa nije dostupno izravno.
+
+Options -Indexes
+
+RewriteEngine On
+RewriteRule ^$ public/ [L]
+RewriteRule ^(?!public/)(.*)$ public/$1 [L]
