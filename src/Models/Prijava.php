@@ -7,10 +7,7 @@ namespace App\Models;
 use App\Core\Database;
 use PDO;
 
-/**
- * Prijave problema (tablica `prijave`). Samo SQL; tko smije vidjeti koju
- * prijavu odlučuje PrijavaService.
- */
+/** Tablica `prijave`. */
 final class Prijava
 {
     private PDO $db;
@@ -20,7 +17,6 @@ final class Prijava
         $this->db = Database::connection();
     }
 
-    /** Zbirni brojevi – ne otkrivaju ništa o pojedinoj prijavi ni korisniku. */
     public function statistika(): array
     {
         $row = $this->db->query(
@@ -33,10 +29,7 @@ final class Prijava
         return array_map('intval', $row);
     }
 
-    /**
-     * Nova prijava. Datum i vrijeme (kreirano_u), hitnost ('srednja') i status
-     * ('PRIJAVLJENO') NE dolaze od korisnika – postavlja ih baza (DEFAULT).
-     */
+    /** Datum, hitnost i status postavlja baza (DEFAULT). */
     public function create(int $korisnikId, array $d): int
     {
         $stmt = $this->db->prepare(
@@ -47,7 +40,6 @@ final class Prijava
         return (int) $this->db->lastInsertId();
     }
 
-    /** Jedna prijava s nazivima četvrti/vrste i ID-jem dodijeljenog radnika (ili null). */
     public function findById(int $id): ?array
     {
         $stmt = $this->db->prepare(
@@ -66,7 +58,7 @@ final class Prijava
         return $stmt->fetch() ?: null;
     }
 
-    /** Prijave jednog korisnika (najnovije prve), uz naslovnu sliku "prije". */
+    /** Uz ID prve slike "prije" (sličica). */
     public function findByUser(int $korisnikId, ?string $status, int $limit, int $offset): array
     {
         [$where, $params] = $this->userWhere($korisnikId, $status);
@@ -103,7 +95,6 @@ final class Prijava
         return (int) $stmt->fetchColumn();
     }
 
-    /** Broj prijava korisnika u zadnjih $minuta minuta (zaštita od zatrpavanja prijavama). */
     public function countRecentByUser(int $korisnikId, int $minuta): int
     {
         $stmt = $this->db->prepare(
@@ -115,11 +106,7 @@ final class Prijava
         return (int) $stmt->fetchColumn();
     }
 
-    /**
-     * Promjena statusa SAMO ako je prijava još uvijek u očekivanom statusu ($iz).
-     * Ako ju je netko u međuvremenu promijenio (npr. dva administratora istovremeno),
-     * UPDATE ne pogodi nijedan redak i vraća false – nema "pregaženih" promjena.
-     */
+    /** Mijenja status samo ako je prijava još u statusu $iz. */
     public function updateStatus(int $id, string $iz, string $u): bool
     {
         $stmt = $this->db->prepare('UPDATE prijave SET status = ? WHERE id = ? AND status = ?');
@@ -133,7 +120,58 @@ final class Prijava
         $stmt->execute([$hitnost, $id]);
     }
 
-    /** Administratorski popis svih prijava s filtrima. Neriješene i najhitnije prve. */
+    /**
+     * Sažetak prijava bez osobnih podataka (API, karta).
+     * @param array{status: ?string, cetvrt: ?int, vrsta: ?int, korisnik: ?int} $f
+     */
+    public function findSummary(array $f, int $limit, int $offset): array
+    {
+        [$where, $params] = $this->summaryWhere($f);
+
+        $stmt = $this->db->prepare(
+            "SELECT p.id, p.naslov, p.status, p.hitnost, p.lat, p.lng, p.kreirano_u, p.azurirano_u,
+                    c.id AS cetvrt_id, c.naziv AS cetvrt, v.id AS vrsta_id, v.naziv AS vrsta
+               FROM prijave p
+               JOIN gradske_cetvrti c ON c.id = p.cetvrt_id
+               JOIN vrste_problema v  ON v.id = p.vrsta_id
+              WHERE {$where}
+              ORDER BY p.kreirano_u DESC, p.id DESC
+              LIMIT :limit OFFSET :offset"
+        );
+        foreach ($params as $name => $value) {
+            $stmt->bindValue($name, $value);
+        }
+        $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+        $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+        $stmt->execute();
+
+        return $stmt->fetchAll();
+    }
+
+    public function countSummary(array $f): int
+    {
+        [$where, $params] = $this->summaryWhere($f);
+
+        $stmt = $this->db->prepare("SELECT COUNT(*) FROM prijave p WHERE {$where}");
+        $stmt->execute($params);
+        return (int) $stmt->fetchColumn();
+    }
+
+    /** @return array{0: string, 1: array<string, int|string>} */
+    private function summaryWhere(array $f): array
+    {
+        $where = ['1 = 1'];
+        $params = [];
+        foreach (['status' => 'p.status', 'cetvrt' => 'p.cetvrt_id', 'vrsta' => 'p.vrsta_id', 'korisnik' => 'p.korisnik_id'] as $kljuc => $stupac) {
+            if ($f[$kljuc] !== null) {
+                $where[] = "{$stupac} = :{$kljuc}";
+                $params[":{$kljuc}"] = $f[$kljuc];
+            }
+        }
+        return [implode(' AND ', $where), $params];
+    }
+
+    /** Prvo prijave koje čekaju provjeru, zatim neriješene po hitnosti. */
     public function findForAdmin(array $f, int $limit, int $offset): array
     {
         [$where, $params] = $this->adminWhere($f);
@@ -170,7 +208,6 @@ final class Prijava
         return (int) $stmt->fetchColumn();
     }
 
-    /** Broj prijava po statusu (za administratorski pregled). */
     public function countByStatus(): array
     {
         return $this->db->query('SELECT status, COUNT(*) FROM prijave GROUP BY status')->fetchAll(PDO::FETCH_KEY_PAIR);

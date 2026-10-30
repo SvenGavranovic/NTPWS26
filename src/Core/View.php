@@ -4,9 +4,7 @@ declare(strict_types=1);
 
 namespace App\Core;
 
-/**
- * Prikaz PHP predložaka iz views/. Svaki pogled se umeće u views/layout.php.
- */
+/** Prikaz predložaka iz views/ unutar layout.php. */
 final class View
 {
     public static function render(string $view, array $data = [], int $status = 200): void
@@ -17,7 +15,7 @@ final class View
         echo self::capture('layout', $data + ['content' => $content]);
     }
 
-    /** Stranica pogreške (403, 404, 405, 500) s razumljivom porukom, bez tehničkih detalja. */
+    /** Stranica pogreške bez tehničkih detalja. */
     public static function error(int $status, ?string $message = null): void
     {
         $messages = [

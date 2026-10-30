@@ -1,8 +1,4 @@
-/*
- * Zajednički JavaScript za sve stranice.
- * Obrasci s atributom data-potvrda traže potvrdu prije slanja (npr. brisanje).
- * To je samo pomoć korisniku – ovlasti i CSRF i dalje provjerava poslužitelj.
- */
+// Potvrda prije slanja obrasca s atributom data-potvrda
 document.addEventListener('submit', function (event) {
     var poruka = event.target.getAttribute('data-potvrda');
     if (poruka && !window.confirm(poruka)) {
@@ -10,10 +6,7 @@ document.addEventListener('submit', function (event) {
     }
 });
 
-/*
- * Pregled odabrane slike prije slanja: <input type="file" data-pregled="id-slike">.
- * Slika se ne šalje nikamo – URL.createObjectURL prikazuje lokalnu datoteku.
- */
+// Pregled odabrane slike: <input type="file" data-pregled="id-slike">
 document.addEventListener('change', function (event) {
     var polje = event.target;
     var pregled = polje.getAttribute && document.getElementById(polje.getAttribute('data-pregled') || '');

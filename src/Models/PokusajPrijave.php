@@ -7,7 +7,7 @@ namespace App\Models;
 use App\Core\Database;
 use PDO;
 
-/** Neuspjeli pokušaji prijave (zaštita od pogađanja lozinke, vidi AuthService). */
+/** Neuspjeli pokušaji prijave. */
 final class PokusajPrijave
 {
     private PDO $db;
@@ -17,7 +17,6 @@ final class PokusajPrijave
         $this->db = Database::connection();
     }
 
-    /** Broj neuspjelih pokušaja u zadnjih $minuta minuta za e-mail i za IP adresu. */
     public function count(string $email, string $ip, int $minuta): array
     {
         $stmt = $this->db->prepare(
@@ -41,7 +40,7 @@ final class PokusajPrijave
         $stmt = $this->db->prepare('INSERT INTO pokusaji_prijave (email, ip) VALUES (?, ?)');
         $stmt->execute([$email, $ip]);
 
-        // Usput brišemo stare zapise da tablica ne raste bez kraja
+        // stari zapisi
         $this->db->exec('DELETE FROM pokusaji_prijave WHERE vrijeme < NOW() - INTERVAL 1 DAY');
     }
 

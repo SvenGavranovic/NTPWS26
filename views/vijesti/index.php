@@ -7,7 +7,6 @@
  * @var int|null $kategorijaId
  */
 
-/** URL popisa s danim filtrima (prazni se izostavljaju). */
 $filterUrl = static function (?int $kategorija, string $q): string {
     $query = array_filter(['q' => $q, 'kategorija' => $kategorija], static fn ($v) => $v !== null && $v !== '');
     return url('/vijesti') . ($query ? '?' . http_build_query($query) : '');
@@ -22,7 +21,7 @@ foreach ($kategorije as $k) {
 ?>
 <div class="d-flex flex-wrap justify-content-between align-items-baseline mb-4 gap-2">
     <h1 class="h2 mb-0">Vijesti</h1>
-    <span class="text-body-secondary">
+    <span class="text-body-secondary" id="vijesti-broj">
         <?= $paginator->total ?> <?= $paginator->total === 1 ? 'vijest' : 'vijesti' ?>
         <?php if ($paginator->hasPages()): ?>· stranica <?= $paginator->page ?> od <?= $paginator->pages ?><?php endif; ?>
     </span>
@@ -30,11 +29,10 @@ foreach ($kategorije as $k) {
 
 <div class="row g-4">
     <aside class="col-lg-3">
-        <!-- Pretraga je GET: rezultat ima svoj URL koji se može podijeliti, a ništa se ne mijenja (nema CSRF-a) -->
         <form method="get" action="<?= e(url('/vijesti')) ?>" class="mb-4" role="search">
             <label for="q" class="form-label fw-semibold">Pretraga</label>
             <div class="input-group">
-                <input type="search" class="form-control" id="q" name="q" maxlength="100"
+                <input type="search" class="form-control" id="q" name="q" maxlength="100" autocomplete="off"
                        placeholder="Naslov ili sadržaj" value="<?= e($q) ?>">
                 <button class="btn btn-primary" type="submit">Traži</button>
             </div>
@@ -61,9 +59,11 @@ foreach ($kategorije as $k) {
         </div>
     </aside>
 
-    <div class="col-lg-9">
+    <div class="col-lg-9" id="vijesti-rezultati"
+         data-api="<?= e(url('/api/v1/vijesti')) ?>" data-stranica="<?= e(url('/vijesti')) ?>"
+         data-kategorija="<?= $kategorijaId ?? '' ?>" data-po-stranici="<?= (int) $paginator->perPage ?>">
         <?php if ($q !== '' || $odabrana !== null): ?>
-            <div class="d-flex flex-wrap align-items-center gap-2 mb-3 small">
+            <div class="d-flex flex-wrap align-items-center gap-2 mb-3 small" id="vijesti-filtri">
                 <span class="text-body-secondary">Filtri:</span>
                 <?php if ($q !== ''): ?>
                     <a class="badge text-bg-light border text-decoration-none" href="<?= e($filterUrl($kategorijaId, '')) ?>"

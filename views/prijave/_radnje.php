@@ -1,13 +1,11 @@
 <?php
 /**
- * Radnje nad prijavom za administratora i dodijeljenog radnika.
- * Gumbi se prikazuju samo kad je prijelaz dopušten, ali isto pravilo
- * PONOVNO provjerava ZadatakService na poslužitelju.
+ * Radnje za admina i dodijeljenog radnika.
  *
  * @var array $prijava
  * @var bool $jeAdmin
  * @var bool $jeRadnik
- * @var array $radnici  aktivni radnici (samo za admina)
+ * @var array $radnici
  * @var int $maxMb
  */
 

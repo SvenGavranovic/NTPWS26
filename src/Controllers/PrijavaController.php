@@ -17,10 +17,7 @@ use App\Services\ImageUpload;
 use App\Services\PrijavaService;
 use App\Services\StatusPrijave;
 
-/**
- * Prijave problema za prijavljene korisnike: nova prijava, popis vlastitih,
- * detalj i posluživanje slika. Sve rute zahtijevaju prijavu (config/routes.php).
- */
+/** Prijave problema: nova prijava, vlastiti popis, detalj i slike. */
 final class PrijavaController
 {
     private const PO_STRANICI = 10;
@@ -49,7 +46,7 @@ final class PrijavaController
         redirect('/prijave/' . $result['id']);
     }
 
-    /** Vlastite prijave prijavljenog korisnika (ID iz sesije, nikad iz URL-a). */
+    /** Vlastite prijave (ID iz sesije). */
     public function index(): void
     {
         $korisnikId = (int) Auth::user()['id'];
@@ -83,18 +80,7 @@ final class PrijavaController
 
         $sluzba = PrijavaService::isStaff($korisnik, $prijava);
 
-        // Slike koje ovaj korisnik smije vidjeti (građanin ne vidi neodobrenu sliku "poslije")
-        $slike = array_values(array_filter(
-            (new PrijavaSlika())->forReport($id),
-            static fn (array $s): bool => PrijavaService::canSeeImage($korisnik, $prijava, $s)
-        ));
-        if (!$sluzba) {
-            // Ako je posao bio vraćen pa ponovno predan, građanin vidi samo zadnju (odobrenu) sliku "poslije"
-            $poslije = array_keys(array_filter($slike, static fn (array $s): bool => $s['tip'] === 'poslije'));
-            foreach (array_slice($poslije, 0, -1) as $i) {
-                unset($slike[$i]);
-            }
-        }
+        $slike = PrijavaService::visibleImages($korisnik, $prijava, (new PrijavaSlika())->forReport($id));
 
         View::render('prijave/show', [
             'title'     => $prijava['naslov'],
@@ -104,17 +90,13 @@ final class PrijavaController
             'sluzba'    => $sluzba,
             'mojId'     => (int) $korisnik['id'],
             'jeAdmin'   => $korisnik['uloga'] === 'admin',
-            // dodijeljeni radnik vidi gumbe za svoj zadatak
             'jeRadnik'  => $korisnik['uloga'] === 'radnik' && (int) $prijava['radnik_id'] === (int) $korisnik['id'],
             'radnici'   => $korisnik['uloga'] === 'admin' ? (new Korisnik())->activeWorkers() : [],
             'maxMb'     => intdiv(PrijavaService::MAX_SLIKA, 1024 * 1024),
         ]);
     }
 
-    /**
-     * Slike prijava su IZVAN webroota (storage/uploads/prijave). Jedini put do
-     * njih je ova metoda, koja prije slanja provjerava pravo pristupa.
-     */
+    /** Slike prijava su izvan webroota; šalju se tek nakon provjere pristupa. */
     public function image(int $id, int $slikaId): void
     {
         $prijava = $this->findVisible($id);
@@ -135,7 +117,6 @@ final class PrijavaController
 
         header('Content-Type: ' . $slika['mime_tip']);
         header('Content-Length: ' . filesize($putanja));
-        // Privatno: slika se smije spremiti samo u pregledniku korisnika, ne na dijeljenim proxyjima
         header('Cache-Control: private, max-age=3600');
         header('Content-Security-Policy: default-src \'none\'; sandbox');
         readfile($putanja);

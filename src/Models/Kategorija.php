@@ -16,7 +16,7 @@ final class Kategorija
         $this->db = Database::connection();
     }
 
-    /** Sve kategorije s brojem OBJAVLJENIH vijesti (nacrti se ne broje). */
+    /** Kategorije s brojem objavljenih vijesti. */
     public function allWithPublishedCount(): array
     {
         return $this->db->query(
@@ -27,7 +27,7 @@ final class Kategorija
               ORDER BY k.naziv"
         )->fetchAll();
     }
-    /** Sve kategorije s brojem SVIH vijesti (za CMS: kategorija s vijestima se ne smije obrisati). */
+    /** Kategorije s brojem svih vijesti (i nacrta). */
     public function allWithTotalCount(): array
     {
         return $this->db->query(
@@ -39,7 +39,7 @@ final class Kategorija
         )->fetchAll();
     }
 
-    /** id => naziv, za padajući izbornik u obrascu vijesti. */
+    /** id => naziv */
     public function options(): array
     {
         return $this->db->query('SELECT id, naziv FROM kategorije_vijesti ORDER BY naziv')

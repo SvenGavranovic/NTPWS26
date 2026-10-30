@@ -10,10 +10,7 @@ use App\Models\Korisnik;
 use App\Models\Prijava;
 use App\Models\VijestCms;
 
-/**
- * Početna stranica administracije. Zaštitu (samo uloga 'admin') provodi
- * router prije poziva, vidi config/routes.php.
- */
+/** Početna stranica administracije. */
 final class AdminController
 {
     public function index(): void

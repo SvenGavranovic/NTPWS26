@@ -46,6 +46,7 @@ bash tests/sigurnost.sh   # sigurnosni testovi (SQLi, XSS, CSRF, IDOR, upload, b
 bash tests/cms.sh         # funkcionalni testovi CMS-a
 bash tests/prijave.sh     # funkcionalni testovi prijava problema
 bash tests/zadaci.sh      # dodjela, kanban, tok statusa i provjera završetka
+bash tests/api.sh         # REST API (/api/v1) i JSON Schema
 ```
 Skripte vraćaju bazu na početne podatke. Opis i rezultati: [docs/TESTOVI.md](docs/TESTOVI.md).
 
@@ -54,6 +55,7 @@ Skripte vraćaju bazu na početne podatke. Opis i rezultati: [docs/TESTOVI.md](d
 - [Prijedlog projekta](docs/PRIJEDLOG_PROJEKTA.md)
 - [ER dijagram i pravila brisanja](docs/ER.md)
 - [Upute za korištenje (po ulogama)](docs/UPUTE.md)
+- [REST API](docs/API.md) i [JSON Schema](schemas/)
 - [Testovi i rezultati](docs/TESTOVI.md)
 
 ## Korištenje AI alata
@@ -68,3 +70,4 @@ Tijekom razvoja korišten je **Claude Code** (Anthropic), uz pregled i ručno te
 | 4 | CMS (vijesti s uređivačem, kategorije, korisnici), sigurnosna analiza i testovi napada, zaštita od pogađanja lozinke |
 | 5 | prijave problema (transakcija, slike izvan webroota), generator demo slika, testovi |
 | 6 | kanban radnika, state machine statusa, dodjela i provjera završetka, testovi |
+| 7 | REST API s JSON Schemom, dokumentacija API-ja, pretraga vijesti preko API-ja, testovi |

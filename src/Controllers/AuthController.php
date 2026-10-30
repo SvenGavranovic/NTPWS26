@@ -9,10 +9,7 @@ use App\Core\Session;
 use App\Core\View;
 use App\Services\AuthService;
 
-/**
- * Registracija, prijava i odjava.
- * Kontroler prima zahtjev, poziva servis i bira odgovor (pogled ili preusmjeravanje).
- */
+/** Registracija, prijava i odjava. */
 final class AuthController
 {
     public function loginForm(): void
@@ -26,8 +23,7 @@ final class AuthController
         $result = (new AuthService())->attemptLogin($email, post('lozinka'), $_SERVER['REMOTE_ADDR'] ?? '');
 
         if (!$result['ok']) {
-            // 401 = autentifikacija nije uspjela, 429 = previše pokušaja (Too Many Requests).
-            // Lozinka se ne vraća u obrazac.
+            // 401 neispravni podaci, 429 previše pokušaja
             if (!empty($result['blokirano'])) {
                 header('Retry-After: ' . (AuthService::PROZOR_MINUTA * 60));
             }
@@ -57,7 +53,7 @@ final class AuthController
 
     public function register(): void
     {
-        // Uzimamo SAMO poznata polja. Eventualno podmetnuto polje "uloga" se ne čita.
+        // samo poznata polja
         $input = [
             'ime'             => post('ime'),
             'prezime'         => post('prezime'),
@@ -69,8 +65,6 @@ final class AuthController
         $errors = (new AuthService())->register($input);
 
         if ($errors !== []) {
-            // 422 = podaci su razumljivi, ali ne prolaze validaciju.
-            // Lozinke se ne vraćaju u obrazac.
             View::render('auth/register', [
                 'title' => 'Registracija',
                 'errors' => $errors,
@@ -79,7 +73,6 @@ final class AuthController
             return;
         }
 
-        // Post/Redirect/Get: osvježavanje stranice neće ponovno poslati obrazac
         Session::flash('success', 'Registracija je uspjela. Sada se možete prijaviti.');
         redirect('/racun/prijava');
     }

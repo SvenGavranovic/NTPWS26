@@ -3,14 +3,10 @@
 declare(strict_types=1);
 
 /*
- * Front controller – JEDINA PHP datoteka dostupna iz preglednika.
- * Svaki zahtjev prolazi ovim redom:
- *   1. učitavanje klasa i konfiguracije (.env)
- *   2. obrada pogrešaka i sigurnosna zaglavlja
- *   3. pokretanje sesije
- *   4. router pronalazi rutu, provjerava CSRF/prijavu/ulogu i poziva kontroler
+ * Front controller.
  */
 
+use App\Core\Api;
 use App\Core\Router;
 use App\Core\Session;
 use App\Core\View;
@@ -27,12 +23,11 @@ $dotenv->required(['APP_URL', 'DB_HOST', 'DB_NAME', 'DB_USER', 'DB_PASS']);
 date_default_timezone_set($_ENV['APP_TIMEZONE'] ?? 'Europe/Zagreb');
 
 // --- 2. Pogreške ------------------------------------------------------------
-// Detalji pogreške prikazuju se samo u razvoju (APP_DEBUG=true).
-// Korisnik inače dobiva generičku poruku, a detalji idu u storage/logs.
+// Detalji pogreške samo uz APP_DEBUG=true.
 ini_set('display_errors', is_debug() ? '1' : '0');
 error_reporting(E_ALL);
 
-// Upozorenja (warning/notice) pretvaramo u iznimke da se ne bi tiho ignorirala.
+// Upozorenja pretvaramo u iznimke.
 set_error_handler(static function (int $level, string $message, string $file, int $line): bool {
     if (!(error_reporting() & $level)) {
         return false; // pogreška je namjerno utišana operatorom @
@@ -42,6 +37,10 @@ set_error_handler(static function (int $level, string $message, string $file, in
 
 set_exception_handler(static function (Throwable $e): void {
     log_error($e);
+    if (Api::isApiPath(request_path())) {
+        Api::error(500, 'Došlo je do pogreške na poslužitelju.', is_debug() ? ['debug' => $e->getMessage()] : []);
+        return;
+    }
     if (is_debug()) {
         http_response_code(500);
         echo '<pre>' . e((string) $e) . '</pre>';
@@ -50,17 +49,17 @@ set_exception_handler(static function (Throwable $e): void {
     try {
         View::error(500);
     } catch (Throwable) {
-        // Ako ni stranica pogreške ne može nastati (npr. baza ne radi), običan tekst
+        // npr. baza nije dostupna
         http_response_code(500);
         echo 'Došlo je do pogreške. Pokušajte ponovno kasnije.';
     }
 });
 
-// Sigurnosna zaglavlja za svaki odgovor
-header('X-Content-Type-Options: nosniff');           // preglednik ne pogađa vrstu sadržaja
-header('X-Frame-Options: DENY');                     // zaštita od clickjackinga (iframe)
+// Sigurnosna zaglavlja
+header('X-Content-Type-Options: nosniff');
+header('X-Frame-Options: DENY');
 header('Referrer-Policy: same-origin');
-header_remove('X-Powered-By');                       // ne otkrivamo verziju PHP-a napadaču
+header_remove('X-Powered-By');
 
 // --- 3. Sesija --------------------------------------------------------------
 Session::start();

@@ -1,7 +1,6 @@
 <?php
 /**
- * Zajednički okvir svih stranica.
- * @var string $content  HTML pogleda (već pripremljen u View::render)
+ * @var string $content
  * @var string $title
  */
 
@@ -19,7 +18,6 @@ $flash = Session::pullFlash();
     <title><?= e($title ?? 'Zagreb Prijave') ?> · Zagreb Prijave</title>
     <meta name="description" content="Prijava komunalnih problema, radovi na infrastrukturi i stanje u prometu u Zagrebu.">
     <link rel="icon" type="image/svg+xml" href="<?= e(asset('img/grb-zagreb.svg')) ?>">
-    <!-- integrity: preglednik odbija datoteku ako je na CDN-u izmijenjena -->
     <link rel="stylesheet"
           href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
           integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH"
@@ -54,7 +52,6 @@ $flash = Session::pullFlash();
                 <?php if ($korisnik): ?>
                     <?= nav_link('/prijave/moje', 'Moje prijave') ?>
                 <?php endif; ?>
-                <!-- Poveznice su skrivene ostalima, ali PRAVU zaštitu radi router (403) -->
                 <?php if (Auth::hasRole('admin')): ?>
                     <?= nav_link('/admin', 'Administracija') ?>
                 <?php elseif (Auth::hasRole('urednik')): ?>
@@ -76,7 +73,6 @@ $flash = Session::pullFlash();
                         </a>
                     </li>
                     <li class="nav-item">
-                        <!-- Odjava je POST s CSRF tokenom: tuđa stranica ne može odjaviti korisnika -->
                         <form method="post" action="<?= e(url('/racun/odjava')) ?>" class="d-inline">
                             <?= csrf_field() ?>
                             <button type="submit" class="btn btn-outline-light btn-sm">Odjava</button>
@@ -106,7 +102,7 @@ $flash = Session::pullFlash();
     <?php endif; ?>
 
     <?php if (!empty($punaSirina)): ?>
-        <?= $content /* već escapean u pogledu */ ?>
+        <?= $content ?>
     <?php else: ?>
         <div class="container py-4"><?= $content ?></div>
     <?php endif; ?>
@@ -141,6 +137,9 @@ $flash = Session::pullFlash();
         integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
         crossorigin="anonymous"></script>
 <script src="<?= e(asset('js/app.js')) ?>"></script>
+<?php if (!empty($vijestiUzivo)): ?>
+    <script src="<?= e(asset('js/vijesti.js')) ?>"></script>
+<?php endif; ?>
 <?php if (!empty($kanban)): ?>
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.7/Sortable.min.js"
             integrity="sha384-DgmC6Xe2bSN2WjTDXzWYbUbxyhNP+NNkGDR/g78pCXV7E7rcVTGxVg0uIVCUUcBc"

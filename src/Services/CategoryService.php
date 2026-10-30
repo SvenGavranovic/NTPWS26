@@ -7,7 +7,6 @@ namespace App\Services;
 use App\Models\Kategorija;
 use PDOException;
 
-/** Kategorije vijesti (samo administrator). */
 final class CategoryService
 {
     private Kategorija $kategorije;
@@ -41,7 +40,6 @@ final class CategoryService
                 $this->kategorije->update($id, $naziv, $opis !== '' ? $opis : null);
             }
         } catch (PDOException $e) {
-            // UNIQUE na nazivu: baza je jedini pouzdani čuvar (i kod istovremenih zahtjeva)
             if ($e->getCode() === '23000') {
                 return ['naziv' => 'Kategorija s tim nazivom već postoji.'];
             }
@@ -53,9 +51,7 @@ final class CategoryService
     /** @return string|null poruka pogreške; null = obrisano */
     public function delete(int $id): ?string
     {
-        // Pravilo brisanja: kategorija koja ima vijesti (i nacrte) se NE briše.
-        // Provjera ovdje daje razumljivu poruku, a FK ON DELETE RESTRICT u bazi
-        // je zadnja linija obrane ako bi se vijest dodala u međuvremenu.
+        // kategorija s vijestima se ne briše (FK RESTRICT je dodatna zaštita)
         $broj = $this->kategorije->countNews($id);
         if ($broj > 0) {
             return "Kategorija ima {$broj} " . ($broj === 1 ? 'vijest' : 'vijesti') . ' i ne može se obrisati. Najprije premjestite ili obrišite vijesti.';

@@ -6,9 +6,7 @@ namespace App\Core;
 
 use PDO;
 
-/**
- * Jedna PDO veza po zahtjevu (otvara se tek kad zatreba).
- */
+/** Jedna PDO veza po zahtjevu. */
 final class Database
 {
     private static ?PDO $pdo = null;
@@ -24,20 +22,15 @@ final class Database
             );
 
             self::$pdo = new PDO($dsn, $_ENV['DB_USER'], $_ENV['DB_PASS'], [
-                // Svaka SQL pogreška baca iznimku – ne može proći neopaženo
                 PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
-                // Retci se vraćaju kao asocijativni nizovi ['email' => ...]
                 PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-                // PRAVI prepared statements: upit i podaci idu bazi odvojeno,
-                // pa podatak nikad ne može postati dio SQL naredbe (SQL injection)
+                // pravi prepared statements
                 PDO::ATTR_EMULATE_PREPARES   => false,
-                // rowCount() za UPDATE vraća broj PRONAĐENIH redaka (WHERE), a ne samo
-                // promijenjenih. Inače bi UPDATE na istu vrijednost (npr. preraspodjela:
-                // DODIJELJENO → DODIJELJENO) izgledao kao da redak nije pronađen.
+                // rowCount(): pronađeni, a ne samo promijenjeni retci
                 PDO::MYSQL_ATTR_FOUND_ROWS   => true,
             ]);
 
-            // Ista vremenska zona u PHP-u i u bazi (CURRENT_TIMESTAMP, NOW())
+            // ista vremenska zona kao u PHP-u
             self::$pdo->exec("SET time_zone = '" . date('P') . "'");
         }
 

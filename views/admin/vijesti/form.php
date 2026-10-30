@@ -27,7 +27,6 @@ $poruka = static fn (string $polje): string => isset($errors[$polje])
     <div class="alert alert-danger" role="alert">Vijest nije spremljena. Provjerite označena polja.</div>
 <?php endif; ?>
 
-<!-- multipart/form-data je potreban za slanje datoteke -->
 <form method="post" action="<?= e(url($akcija)) ?>" enctype="multipart/form-data" novalidate id="obrazac-vijesti">
     <?= csrf_field() ?>
 
@@ -50,8 +49,6 @@ $poruka = static fn (string $polje): string => isset($errors[$polje])
 
             <div class="mb-3">
                 <label for="sadrzaj" class="form-label">Sadržaj</label>
-                <!-- Bez JavaScripta ostaje obično polje s HTML-om; s JS-om ga zamjenjuje Quill uređivač.
-                     U oba slučaja poslužitelj sadržaj čisti HTMLPurifierom. -->
                 <div id="uredjivac" class="bg-body d-none<?= $invalid('sadrzaj') ?>"></div>
                 <textarea class="form-control font-monospace<?= $invalid('sadrzaj') ?>" id="sadrzaj" name="sadrzaj"
                           rows="12"><?= e($vijest['sadrzaj'] ?? '') ?></textarea>

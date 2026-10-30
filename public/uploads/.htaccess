@@ -1,9 +1,7 @@
-# Mapa s datotekama koje su poslali korisnici.
-# Čak i kad bi netko uspio podmetnuti skriptu, ovdje se NIŠTA ne izvršava.
+# Datoteke koje šalju korisnici: bez izvršavanja skripti.
 
 Options -Indexes -ExecCGI
 
-# Isključi PHP interpreter (XAMPP koristi mod_php; IfModule sprječava grešku 500 ako ga nema)
 <IfModule mod_php.c>
     php_flag engine off
 </IfModule>
@@ -11,14 +9,13 @@ Options -Indexes -ExecCGI
     php_flag engine off
 </IfModule>
 
-# Ukloni sve rukovatelje skriptama i poslužuj ih kao običan tekst
 RemoveHandler .php .phtml .php3 .php4 .php5 .php7 .php8 .phar .pl .py .cgi .sh .asp .aspx .jsp
 RemoveType .php .phtml .php3 .php4 .php5 .php7 .php8 .phar
 <FilesMatch ".+">
     SetHandler default-handler
 </FilesMatch>
 
-# Poslužuju se SAMO slike koje aplikacija sprema (nasumično ime + jpg/png/webp)
+# Samo slike
 <FilesMatch "\.(?i:jpe?g|png|webp)$">
     Require all granted
 </FilesMatch>
@@ -26,7 +23,6 @@ RemoveType .php .phtml .php3 .php4 .php5 .php7 .php8 .phar
     Require all denied
 </FilesMatch>
 
-# Preglednik ne smije "pogađati" vrstu datoteke (npr. izvršiti sliku kao HTML)
 <IfModule mod_headers.c>
     Header set X-Content-Type-Options "nosniff"
     Header set Content-Security-Policy "default-src 'none'; img-src 'self'; sandbox"

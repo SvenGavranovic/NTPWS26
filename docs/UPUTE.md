@@ -24,7 +24,7 @@ Registracijom se uvijek dobiva uloga **korisnik**. Ostale uloge dodjeljuje admin
 
 ### Vijesti
 - **Vijesti** u izborniku prikazuju objavljene vijesti, najnovije prve, po 4 na stranici.
-- **Pretraga** traži u naslovu, sažetku i tekstu vijesti. Velika i mala slova nisu bitna.
+- **Pretraga** traži u naslovu, sažetku i tekstu vijesti. Rezultati se osvježavaju već dok tipkate; velika i mala slova nisu bitna.
 - Klik na **kategoriju** s lijeve strane prikazuje samo vijesti iz nje. Pretraga i kategorija mogu se kombinirati.
 - Klik na naslov otvara cijelu vijest.
 
@@ -153,6 +153,9 @@ Svaka promjena statusa bilježi se u tijeku prijave (tko, kada, iz kojeg u koji 
 - dodavanje nove kategorije (naziv mora biti jedinstven);
 - **Uredi** popunjava obrazac podacima kategorije;
 - **Obriši** je moguće samo za kategoriju bez vijesti (ni objavljenih ni nacrta).
+
+### Programski pristup (REST API)
+Svi podaci dostupni su i preko JSON API-ja na `/api/v1/` (vijesti, kategorije, prijave, radovi). Opis krajnjih točaka, prijave i primjeri su u [API.md](API.md).
 
 ### Korisnici
 **Administracija → Korisnici**:

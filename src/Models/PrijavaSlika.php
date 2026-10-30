@@ -7,7 +7,7 @@ namespace App\Models;
 use App\Core\Database;
 use PDO;
 
-/** Slike prijava (tablica `prijava_slike`): tip 'prije' (građanin) i 'poslije' (radnik). */
+/** Slike prijava: tip 'prije' i 'poslije'. */
 final class PrijavaSlika
 {
     private PDO $db;
@@ -26,7 +26,6 @@ final class PrijavaSlika
         $stmt->execute([$prijavaId, $ucitaoId, $tip, $datoteka, $mime, $velicina]);
     }
 
-    /** Sve slike prijave, najprije "prije", pa "poslije". */
     public function forReport(int $prijavaId): array
     {
         $stmt = $this->db->prepare(
@@ -37,7 +36,7 @@ final class PrijavaSlika
         return $stmt->fetchAll();
     }
 
-    /** Slika samo ako pripada TOJ prijavi (inače bi se tuđa slika mogla dohvatiti promjenom ID-a slike). */
+    /** Slika samo ako pripada zadanoj prijavi. */
     public function find(int $prijavaId, int $slikaId): ?array
     {
         $stmt = $this->db->prepare(

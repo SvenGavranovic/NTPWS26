@@ -1,0 +1,19 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "prijava-izmjena",
+  "title": "Izmjena prijave (PATCH /api/v1/prijave/{id})",
+  "description": "Jedna radnja po zahtjevu: dodjela radniku, hitnost ili promjena statusa.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "radnik_id": { "type": "integer", "minimum": 1, "description": "Dodjela ili preraspodjela (admin)" },
+    "hitnost":   { "type": "string", "enum": ["niska", "srednja", "visoka", "kriticna"], "description": "Admin" },
+    "status":    { "type": "string", "enum": ["U_RADU", "ZAVRSENO", "VRACENO"], "description": "U_RADU (radnik), ZAVRSENO i VRACENO (admin)" },
+    "komentar":  { "type": "string", "minLength": 5, "maxLength": 1000, "description": "Obavezan uz status VRACENO (provjerava poslužitelj)" }
+  },
+  "oneOf": [
+    { "required": ["radnik_id"], "not": { "anyOf": [{ "required": ["hitnost"] }, { "required": ["status"] }] } },
+    { "required": ["hitnost"],   "not": { "anyOf": [{ "required": ["radnik_id"] }, { "required": ["status"] }] } },
+    { "required": ["status"],    "not": { "anyOf": [{ "required": ["radnik_id"] }, { "required": ["hitnost"] }] } }
+  ]
+}

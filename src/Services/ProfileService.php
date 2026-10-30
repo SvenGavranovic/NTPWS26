@@ -6,11 +6,7 @@ namespace App\Services;
 
 use App\Models\Korisnik;
 
-/**
- * Promjene na VLASTITOM profilu. ID korisnika uvijek dolazi iz sesije
- * (Auth::user()), nikad iz obrasca, pa nitko ne može mijenjati tuđi profil.
- * E-mail i uloga se ovdje ne mogu mijenjati.
- */
+/** Promjene vlastitog profila. */
 final class ProfileService
 {
     private Korisnik $korisnici;
@@ -42,8 +38,6 @@ final class ProfileService
     {
         $hash = $this->korisnici->findPasswordHash($korisnikId);
 
-        // Trenutna lozinka se traži i kad je korisnik prijavljen: netko tko
-        // sjedne za tuđe otključano računalo ne može tako preuzeti račun
         if ($hash === null || !password_verify($trenutna, $hash)) {
             return ['trenutna_lozinka' => 'Trenutna lozinka nije ispravna.'];
         }

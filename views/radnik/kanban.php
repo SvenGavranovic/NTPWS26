@@ -7,11 +7,7 @@
 
 use App\Services\StatusPrijave;
 
-/*
- * data-prima: iz kojih stupaca se kartica smije povući u ovaj stupac.
- * To je SAMO pomoć u sučelju (iste prijelaze dopušta StatusPrijave::PRIJELAZI).
- * Stvarnu provjeru uvijek radi poslužitelj.
- */
+// iz kojih stupaca stupac prima karticu
 $prima = [
     'U_RADU'        => 'DODIJELJENO,VRACENO',
     'CEKA_PROVJERU' => 'U_RADU',
@@ -50,7 +46,6 @@ $ukupno = array_sum(array_map('count', $stupci));
                                     prijavljeno <?= e(datum($z['kreirano_u'])) ?>
                                 </div>
                                 <?php if (StatusPrijave::canTransition($z['status'], 'U_RADU', 'radnik')): ?>
-                                    <!-- Bez JavaScripta (ili na mobitelu) isto radi i gumb -->
                                     <form method="post" action="<?= e(url('/radnik/zadaci/' . (int) $z['id'] . '/zapocni')) ?>" class="mt-2">
                                         <?= csrf_field() ?>
                                         <button type="submit" class="btn btn-sm btn-outline-primary">Započni rad</button>

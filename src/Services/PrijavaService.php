@@ -11,23 +11,16 @@ use App\Models\PrijavaSlika;
 use App\Models\Sifrarnik;
 use Throwable;
 
-/**
- * Prijave problema: nova prijava (validacija + transakcija) i pravila
- * o tome tko smije vidjeti koju prijavu i koje slike.
- */
+/** Prijave problema: nova prijava i pravila pristupa. */
 final class PrijavaService
 {
     public const MAPA_SLIKA = 'prijave';
-    public const MAX_SLIKA = 5 * 1024 * 1024;   // fotografije s mobitela često imaju 3–5 MB
+    public const MAX_SLIKA = 5 * 1024 * 1024;
 
-    /** Zaštita od zatrpavanja: najviše toliko prijava po korisniku u PROZOR_MINUTA. */
     public const MAX_PRIJAVA = 10;
     public const PROZOR_MINUTA = 60;
 
     /**
-     * Nova prijava. Korisnik šalje sliku, četvrt, vrstu, naslov, opis i (neobavezno) adresu.
-     * Datum, vrijeme, hitnost i status postavlja sustav.
-     *
      * @return array{id?: int, errors: array<string, string>, previse?: bool}
      */
     public function create(int $korisnikId, array $input, ?array $slika): array
@@ -38,8 +31,6 @@ final class PrijavaService
 
         [$data, $errors] = $this->validate($input);
 
-        // Slika je obavezna. Provjerava se tek kad su ostala polja ispravna,
-        // da se ne spremaju datoteke iz neuspjelih pokušaja.
         if ($errors === []) {
             $upload = ImageUpload::save($slika, self::MAPA_SLIKA, self::MAX_SLIKA);
             if ($upload === []) {
@@ -55,8 +46,6 @@ final class PrijavaService
             return ['errors' => $errors];
         }
 
-        // TRANSAKCIJA: prijava, slika i prvi zapis povijesti nastaju zajedno ili nijedno.
-        // Bez nje bi pad drugog upita ostavio prijavu bez slike ili bez povijesti.
         $db = Database::connection();
         $db->beginTransaction();
         try {
@@ -66,17 +55,14 @@ final class PrijavaService
             $db->commit();
         } catch (Throwable $e) {
             $db->rollBack();
-            ImageUpload::delete($upload['ime'], self::MAPA_SLIKA); // datoteka bez zapisa u bazi nikome ne treba
+            ImageUpload::delete($upload['ime'], self::MAPA_SLIKA);
             throw $e;
         }
 
         return ['id' => $id, 'errors' => []];
     }
 
-    /**
-     * Tko smije vidjeti prijavu: podnositelj, administrator i radnik kojem je dodijeljena.
-     * Provjerava se za SVAKU prijavu i svaku sliku (zaštita od IDOR-a).
-     */
+    /** Podnositelj, admin i dodijeljeni radnik. */
     public static function canView(array $korisnik, array $prijava): bool
     {
         return $korisnik['uloga'] === 'admin'
@@ -84,20 +70,27 @@ final class PrijavaService
             || ($korisnik['uloga'] === 'radnik' && (int) ($prijava['radnik_id'] ?? 0) === (int) $korisnik['id']);
     }
 
-    /**
-     * Je li korisnik "služba" za ovu prijavu (admin ili dodijeljeni radnik).
-     * Služba vidi interne komentare i sliku "poslije" prije odobrenja.
-     */
+    /** Admin ili dodijeljeni radnik. */
     public static function isStaff(array $korisnik, array $prijava): bool
     {
         return $korisnik['uloga'] === 'admin'
             || ($korisnik['uloga'] === 'radnik' && (int) ($prijava['radnik_id'] ?? 0) === (int) $korisnik['id']);
     }
 
-    /**
-     * Građanin vidi sliku "poslije" tek kad je posao odobren (ZAVRSENO);
-     * dok je na provjeri, administrator ju još može odbiti.
-     */
+    /** Slike prijave koje korisnik smije vidjeti; građaninu samo zadnja slika "poslije". */
+    public static function visibleImages(array $korisnik, array $prijava, array $slike): array
+    {
+        $slike = array_values(array_filter($slike, static fn (array $s): bool => self::canSeeImage($korisnik, $prijava, $s)));
+        if (!self::isStaff($korisnik, $prijava)) {
+            $poslije = array_keys(array_filter($slike, static fn (array $s): bool => $s['tip'] === 'poslije'));
+            foreach (array_slice($poslije, 0, -1) as $i) {
+                unset($slike[$i]);
+            }
+        }
+        return array_values($slike);
+    }
+
+    /** Građanin vidi sliku "poslije" tek kad je prijava završena. */
     public static function canSeeImage(array $korisnik, array $prijava, array $slika): bool
     {
         return $slika['tip'] === 'prije'
@@ -106,13 +99,11 @@ final class PrijavaService
     }
 
     /**
-     * Samo poznata polja; korisnik_id, hitnost i status iz obrasca se ignoriraju.
      * @return array{0: array, 1: array<string, string>}
      */
     private function validate(array $input): array
     {
         $naslov = trim($input['naslov'] ?? '');
-        // Opis je običan tekst (ne HTML); normaliziramo prijelome redaka
         $opis   = trim(str_replace("\r\n", "\n", $input['opis'] ?? ''));
         $adresa = trim($input['adresa'] ?? '');
         $cetvrtId = filter_var($input['cetvrt_id'] ?? '', FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);

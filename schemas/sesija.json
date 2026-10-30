@@ -1,0 +1,12 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "sesija",
+  "title": "Prijava korisnika (POST /api/v1/sesija)",
+  "type": "object",
+  "required": ["email", "lozinka"],
+  "additionalProperties": false,
+  "properties": {
+    "email":   { "type": "string", "minLength": 3, "maxLength": 255 },
+    "lozinka": { "type": "string", "minLength": 1, "maxLength": 200 }
+  }
+}

@@ -9,10 +9,7 @@ use App\Core\View;
 use App\Models\Kategorija;
 use App\Models\Vijest;
 
-/**
- * Javni popis i detalj vijesti. Prikazuju se SAMO objavljene vijesti
- * (pravilo je u modelu Vijest, pa ga kontroler ne može zaobići).
- */
+/** Javni popis i detalj vijesti. */
 final class NewsController
 {
     private const PO_STRANICI = 4;
@@ -20,7 +17,6 @@ final class NewsController
 
     public function index(): void
     {
-        // Parametri iz URL-a: /vijesti?q=promet&kategorija=2&stranica=2
         $q = mb_substr(get('q'), 0, self::MAX_DULJINA_PRETRAGE);
         $kategorijaId = get_int('kategorija');
 
@@ -40,6 +36,7 @@ final class NewsController
             'paginator'    => $paginator,
             'q'            => $q,
             'kategorijaId' => $kategorijaId,
+            'vijestiUzivo' => true,
         ]);
     }
 
@@ -47,8 +44,7 @@ final class NewsController
     {
         $vijest = (new Vijest())->findPublishedById($id);
 
-        // Nepostojeća i neobjavljena vijest daju ISTI odgovor (404),
-        // pa se izvana ne može doznati ni da nacrt s tim ID-jem postoji
+        // nacrt i nepostojeća vijest: isti odgovor
         if ($vijest === null) {
             View::error(404, 'Vijest ne postoji ili nije objavljena.');
             return;

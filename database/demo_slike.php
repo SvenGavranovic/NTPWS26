@@ -3,14 +3,10 @@
 declare(strict_types=1);
 
 /*
- * Stvara zamjenske slike za prijave iz seed.sql (demo-p01-prije.png ...)
- * u storage/uploads/prijave/. Pokreće se nakon uvoza seed.sql:
+ * Demo slike za prijave iz seed.sql (storage/uploads/prijave/).
+ * GD nije dostupan, pa se PNG gradi ručno.
  *
- *     C:\xampp\php\php.exe database\demo_slike.php
- *
- * XAMPP nema uključenu GD ekstenziju, pa se PNG slaže "ručno": pikseli se
- * zapišu redak po redak, sažmu zlibom i zapakiraju u PNG blokove (IHDR, IDAT, IEND).
- * Slike su obojene plohe s natpisom – dovoljne za demonstraciju prikaza.
+ *     php database/demo_slike.php
  */
 
 const SIRINA = 640;

@@ -1,8 +1,5 @@
 <?php
-/**
- * Podizbornik administracije. Urednik vidi samo vijesti; ostale stavke
- * su skrivene, ali ih ionako štiti router (403).
- */
+/** Podizbornik administracije. */
 
 use App\Core\Auth;
 

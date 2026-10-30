@@ -4,10 +4,7 @@ declare(strict_types=1);
 
 namespace App\Core;
 
-/**
- * Izračun straničenja: koja je stranica, koliko ih ima i od kojeg retka
- * počinje upit (OFFSET). Gradi i poveznice koje čuvaju aktivne filtre.
- */
+/** Straničenje: stranice, OFFSET i poveznice koje čuvaju filtre. */
 final class Paginator
 {
     public readonly int $pages;
@@ -15,7 +12,7 @@ final class Paginator
     public readonly int $offset;
 
     /**
-     * @param array<string, scalar> $query  aktivni filtri koje poveznice moraju zadržati
+     * @param array<string, scalar> $query  aktivni filtri
      */
     public function __construct(
         public readonly int $total,
@@ -25,7 +22,6 @@ final class Paginator
         private readonly array $query = [],
     ) {
         $this->pages = max(1, (int) ceil($total / $perPage));
-        // ?stranica=999 ili ?stranica=-5 → najbliža postojeća stranica
         $this->page = min(max(1, $requestedPage ?? 1), $this->pages);
         $this->offset = ($this->page - 1) * $perPage;
     }

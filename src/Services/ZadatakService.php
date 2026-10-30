@@ -13,21 +13,13 @@ use App\Models\Zadatak;
 use Throwable;
 
 /**
- * Tok rada nad prijavom: dodjela, hitnost, početak rada, slanje na provjeru,
- * odobrenje i vraćanje.
- *
- * Svaka radnja:
- *  1. provjerava ULOGU i dopušteni prijelaz (StatusPrijave::canTransition),
- *  2. za radnika provjerava je li zadatak dodijeljen BAŠ NJEMU,
- *  3. u TRANSAKCIJI mijenja status (samo ako se u međuvremenu nije promijenio)
- *     i upisuje zapis u povijest_statusa.
- * Metode vraćaju poruku pogreške ili null kad je sve uspjelo.
+ * Promjene statusa prijave. Metode vraćaju poruku pogreške ili null.
  */
 final class ZadatakService
 {
+    public const KONFLIKT = 'Status prijave se u međuvremenu promijenio. Osvježite stranicu i pokušajte ponovno.';
     private const HITNOSTI = ['niska', 'srednja', 'visoka', 'kriticna'];
 
-    /** Admin dodjeljuje prijavu radniku ili je preraspodjeljuje drugom radniku. */
     public function assign(array $admin, array $prijava, int $radnikId): ?string
     {
         if ($greska = $this->checkTransition($admin, $prijava, 'DODIJELJENO')) {
@@ -54,7 +46,6 @@ final class ZadatakService
         });
     }
 
-    /** Hitnost mijenja samo administrator, dok prijava nije završena. */
     public function setHitnost(array $admin, array $prijava, string $hitnost): ?string
     {
         if ($admin['uloga'] !== 'admin') {
@@ -70,17 +61,14 @@ final class ZadatakService
         return null;
     }
 
-    /** Radnik započinje rad (iz DODIJELJENO ili nakon vraćanja iz VRACENO). */
+    /** DODIJELJENO/VRACENO → U_RADU */
     public function start(array $radnik, array $prijava): ?string
     {
         return $this->checkTransition($radnik, $prijava, 'U_RADU')
             ?? $this->transition($prijava, 'U_RADU', (int) $radnik['id']);
     }
 
-    /**
-     * Radnik šalje obavljeni posao na provjeru. Obavezni su slika "poslije" i napomena.
-     * Radnik NE može sam označiti ZAVRSENO – to odobrava administrator.
-     */
+    /** U_RADU → CEKA_PROVJERU */
     public function submit(array $radnik, array $prijava, string $napomena, ?array $slika): ?string
     {
         if ($greska = $this->checkTransition($radnik, $prijava, 'CEKA_PROVJERU')) {
@@ -113,14 +101,14 @@ final class ZadatakService
         return $greska;
     }
 
-    /** Administrator odobrava obavljeni posao → ZAVRSENO. */
+    /** CEKA_PROVJERU → ZAVRSENO */
     public function approve(array $admin, array $prijava): ?string
     {
         return $this->checkTransition($admin, $prijava, 'ZAVRSENO')
             ?? $this->transition($prijava, 'ZAVRSENO', (int) $admin['id']);
     }
 
-    /** Administrator vraća posao radniku na doradu; razlog je obavezan. */
+    /** CEKA_PROVJERU → VRACENO */
     public function reject(array $admin, array $prijava, string $komentar): ?string
     {
         if ($greska = $this->checkTransition($admin, $prijava, 'VRACENO')) {
@@ -134,14 +122,9 @@ final class ZadatakService
         return $this->transition($prijava, 'VRACENO', (int) $admin['id'], $komentar);
     }
 
-    /**
-     * Provjera ovlasti PRIJE bilo kakve izmjene:
-     *  - prijelaz mora biti u tablici StatusPrijave::PRIJELAZI za tu ulogu,
-     *  - radnik smije mijenjati samo zadatak koji je dodijeljen njemu.
-     */
     private function checkTransition(array $korisnik, array $prijava, string $u): ?string
     {
-        // Vlasništvo se provjerava PRVO: radnik o tuđem zadatku ne smije doznati ni njegov status
+        // vlasništvo prije prijelaza
         if ($korisnik['uloga'] === 'radnik' && (int) $prijava['radnik_id'] !== (int) $korisnik['id']) {
             return 'Ovaj zadatak nije dodijeljen vama.';
         }
@@ -153,10 +136,7 @@ final class ZadatakService
         return null;
     }
 
-    /**
-     * Promjena statusa u transakciji: dodatne izmjene ($dodatno) + status + povijest.
-     * Ako je netko u međuvremenu promijenio status, sve se poništava.
-     */
+    /** Dodatne izmjene, status i povijest u jednoj transakciji. */
     private function transition(
         array $prijava,
         string $u,
@@ -172,14 +152,13 @@ final class ZadatakService
             if ($dodatno !== null) {
                 $dodatno();
             }
-            // UPDATE ... WHERE status = <stari status>: ako ga je netko u međuvremenu
-            // promijenio, ne mijenja se ništa i cijela se transakcija poništava
+            // status se u međuvremenu promijenio
             if (!(new Prijava())->updateStatus($id, $prijava['status'], $u)) {
                 $db->rollBack();
                 if ($onFailure !== null) {
                     $onFailure();
                 }
-                return 'Status prijave se u međuvremenu promijenio. Osvježite stranicu i pokušajte ponovno.';
+                return self::KONFLIKT;
             }
             (new PovijestStatusa())->add($id, $korisnikId, $prijava['status'], $u, $komentar);
             $db->commit();

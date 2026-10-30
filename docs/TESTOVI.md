@@ -13,6 +13,7 @@ bash tests/sigurnost.sh     # napadi (OWASP Top 10)
 bash tests/cms.sh           # funkcionalnost CMS-a (faza 4)
 bash tests/prijave.sh       # prijave problema (faza 5)
 bash tests/zadaci.sh        # dodjela, kanban, state machine (faza 6)
+bash tests/api.sh           # REST API i JSON Schema (faza 7)
 ```
 
 > **Upozorenje:** skripte na početku i na kraju vraćaju bazu na početne podatke (`schema.sql` + `seed.sql`). Pokreću se samo na razvojnoj bazi.
@@ -23,7 +24,7 @@ Svaka sljedeća faza (prijave, kanban, API, TomTom) dodaje nove slučajeve u `te
 
 ## Sigurnosni testovi – `tests/sigurnost.sh`
 
-Stanje nakon faze 6: **152 / 152 prošlo** (30. 10. 2026.)
+Stanje nakon faze 7: **175 / 175 prošlo** (30. 10. 2026.)
 
 | # | Napad | Primjer zahtjeva | Očekivano | Dobiveno |
 |---|---|---|---|---|
@@ -68,9 +69,18 @@ Stanje nakon faze 6: **152 / 152 prošlo** (30. 10. 2026.)
 | 11 | CSRF i SQLi u toku rada | vraćanje s lažnim tokenom; `radnik_id=1 OR 1=1` | 403 / dodjela odbijena | ✔ |
 | 11 | Upload i mass assignment pri završetku | web shell kao slika „poslije”; podmetnuti `tip=prije`, `ucitao_id=1`, `status=ZAVRSENO` | odbijeno / ignorirano (slika je „poslije”, učitao radnik, status ČEKA PROVJERU) | ✔ |
 | 11 | XSS u napomeni i razlogu vraćanja | `<script>`, `<img onerror>` | prikazano kao tekst | ✔ |
-| 12 | Brute force | 5 krivih lozinki pa ispravna | 429 + `Retry-After: 900` | ✔ |
-| 12 | Brute force na nepostojeći račun | 5 pokušaja | 429 (ne otkriva postoji li račun) | ✔ |
-| 12 | Password spraying | 20 pokušaja s iste IP adrese na razne račune | 429 i za ostale račune | ✔ |
+| 12 | SQLi preko API-ja | `?q=... UNION SELECT ... lozinka_hash`, `?kategorija=1 OR 1=1`, `?status=... OR '1'='1` | 0 rezultata / bez nacrta / filtar ignoriran | ✔ |
+| 12 | Curenje podataka preko API-ja | javni `GET /prijave` (100 zapisa) | bez e-mailova, hasheva, opisa i prijavitelja | ✔ |
+| 12 | CORS | odgovor API-ja | nema `Access-Control-Allow-Origin` | ✔ |
+| 12 | CSRF na API | PATCH bez tokena; DELETE s lažnim tokenom; HTML obrazac s `enctype=text/plain` i JSON-om u tijelu | 403 / 403 / 403; s tokenom, ali bez `application/json` → 400 | ✔ |
+| 12 | IDOR i mass assignment preko API-ja | Lea mijenja Tinovu vijest; `autor_id` u POST-u | 403 / 400 (shema) | ✔ |
+| 12 | Pohranjeni XSS preko API-ja | `onclick`, `<img onerror>`, `javascript:` u sadržaju | uklonjeni HTMLPurifierom | ✔ |
+| 12 | Zlonamjerni JSON | 40 razina ugniježđenja; niz umjesto objekta | 400 | ✔ |
+| 12 | Tok rada preko API-ja | radnik sam zatvara prijavu, mijenja tuđi zadatak, dodjeljuje zadatak sebi | 403 | ✔ |
+| 12 | Otkrivanje informacija | 404 iz API-ja; PUT | bez putanja i SQL-a; 405 | ✔ |
+| 13 | Brute force | 5 krivih lozinki pa ispravna | 429 + `Retry-After: 900` | ✔ |
+| 13 | Brute force na nepostojeći račun | 5 pokušaja | 429 (ne otkriva postoji li račun) | ✔ |
+| 13 | Password spraying | 20 pokušaja s iste IP adrese na razne račune | 429 i za ostale račune | ✔ |
 | – | Stabilnost | svi gornji napadi | nijedna pogreška 500 u `storage/logs/app.log` | ✔ |
 
 ### Poznata ograničenja (svjesno prihvaćena)
@@ -129,6 +139,24 @@ Stanje nakon faze 6: **85 / 85 prošlo** (30. 10. 2026.)
 | Slanje na provjeru | bez slike i s prekratkom napomenom odbijeno (slika se ne sprema); ispravno: status, slika „poslije”, napomena (UTF-8), povijest; radnik ne može odobriti (403); građanin ne vidi neodobrenu sliku | ✔ |
 | Odobrenje i vraćanje | odobrenje iz „U radu” odbijeno; odobrenje → ZAVRŠENO, građanin vidi sliku; vraćanje bez razloga odbijeno; s razlogom → radnik ga vidi, građanin ne; ciklus dorade do ZAVRŠENO; građanin vidi samo zadnju sliku „poslije” | ✔ |
 | State machine | svaka radnja (započni, na provjeru, odobri, vrati, radnik → odobri) isprobana iz svih 6 statusa; prolazi samo iz dopuštenih | ✔ |
+
+## Testovi REST API-ja – `tests/api.sh`
+
+Stanje nakon faze 7: **128 / 128 prošlo** (30. 10. 2026.)
+
+| Područje | Scenariji | Dobiveno |
+|---|---|---|
+| Format i straničenje | `Content-Type: application/json`; `data` + `meta`; datumi ISO 8601; `po_stranici` (zadano, najviše 50, neispravno → zadano); `stranica=99` → zadnja; poveznica na sljedeću stranicu; filtri `kategorija` i `q`; popis bez punog sadržaja, detalj sa sadržajem; kategorije s brojem objavljenih | ✔ |
+| Neobjavljene vijesti | nacrti i povučena vijest nisu u popisu, pretrazi ni filtru; `GET /vijesti/7` i `/9` → 404 JSON | ✔ |
+| Pogreške | nepostojeći resurs 404 JSON; PUT → 405 + `Allow`; `/vijesti/abc` → 404 | ✔ |
+| Sesija | `GET /sesija` (gost, token od 64 znaka); `POST` bez CSRF-a 403, bez lozinke 400 (shema), kriva lozinka 401, bez tijela / neispravan JSON / form-data → 400; uspješna prijava urednice; `DELETE` bez prijave 401 | ✔ |
+| JSON Schema | valjan primjer → 201 + `Location`, status `nacrt`, autor iz sesije, UTF-8 ispravno, `<script>` uklonjen; nevaljan primjer → 400 s greškom za svako polje (`naslov`, `sazetak`, `sadrzaj`, `kategorija_id`, `status`, `autor_id`); nepostojeća kategorija → 400 iz servisa; gost → 401; korisnica → 403 | ✔ |
+| PATCH / DELETE vijesti | objava (datum postavljen, vijest postaje javna); prazan PATCH i `autor_id` → 400; tuđa vijest → 403; bez CSRF-a → 403; nepostojeća → 404; DELETE → 204 bez tijela, zatim 404 | ✔ |
+| Prijave – čitanje | javni sažetak bez opisa, prijavitelja i e-mailova; prijava bez lokacije → `null`; filtri; `?moje=1` bez prijave 401, s prijavom 5; detalj bez prijave 401, tuđi 403; građanin bez imena i komentara, bez neodobrene slike; admin vidi sve | ✔ |
+| Prijave – POST | multipart sa slikom → 201 + `Location`, sustav postavlja status i hitnost; bez slike → 400 s detaljima; JSON umjesto multiparta → 400 | ✔ |
+| Prijave – PATCH | radnik `U_RADU` → 200, ponovno → 409, tuđi zadatak 403, sam `ZAVRSENO` 403, `CEKA_PROVJERU` → 400 (shema); admin odobrenje iz U RADU → 409; vraćanje bez komentara 400, s komentarom 200; dodjela 200; hitnost 200; dvije radnje odjednom → 400 (`oneOf`); dodjela korisnici 400; dodjela završene 409; korisnica mijenja hitnost 403; nepostojeća 404 | ✔ |
+| Radovi | 5 radova s lokacijom; `aktivni=1` (uspoređeno s bazom); `vrsta=cesta`; nepoznata vrsta (i SQLi) ignorirana | ✔ |
+| Frontend | stranica vijesti učitava `vijesti.js` s adresom API-ja; kanban mijenja status preko `PATCH /api/v1/prijave/{id}`; odjava preko API-ja | ✔ |
 
 ## Testovi prethodnih faza
 

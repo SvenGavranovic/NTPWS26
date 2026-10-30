@@ -6,7 +6,6 @@
 $errors ??= [];
 $old ??= [];
 
-/** Bootstrap klasa i poruka ispod polja s pogreškom */
 $invalid = static fn (string $polje): string => isset($errors[$polje]) ? ' is-invalid' : '';
 $poruka = static fn (string $polje): string => isset($errors[$polje])
     ? '<div class="invalid-feedback" id="' . $polje . '-greska">' . e($errors[$polje]) . '</div>'
@@ -20,7 +19,6 @@ $poruka = static fn (string $polje): string => isset($errors[$polje])
             <div class="alert alert-danger" role="alert">Provjerite označena polja.</div>
         <?php endif; ?>
 
-        <!-- novalidate: pravila provjerava poslužitelj, pa poruke uvijek dolaze iz istog izvora -->
         <form method="post" action="<?= e(url('/racun/registracija')) ?>" novalidate>
             <?= csrf_field() ?>
 

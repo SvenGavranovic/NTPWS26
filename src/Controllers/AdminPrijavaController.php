@@ -13,11 +13,7 @@ use App\Models\Sifrarnik;
 use App\Services\StatusPrijave;
 use App\Services\ZadatakService;
 
-/**
- * Administracija prijava (/admin/prijave): popis svih prijava, dodjela radniku,
- * hitnost, odobrenje i vraćanje. Router pušta samo ulogu 'admin'.
- * Gumbi za radnje nalaze se na detalju prijave (/prijave/{id}).
- */
+/** Administracija prijava: popis, dodjela, hitnost, odobrenje i vraćanje. */
 final class AdminPrijavaController
 {
     private const PO_STRANICI = 15;

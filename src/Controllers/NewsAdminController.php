@@ -12,12 +12,7 @@ use App\Models\Kategorija;
 use App\Models\VijestCms;
 use App\Services\NewsAdminService;
 
-/**
- * CMS za vijesti (/admin/vijesti). Router pušta samo uloge urednik i admin.
- * Za postojeću vijest se UVIJEK dodatno provjerava je li korisnik smije
- * mijenjati (urednik samo svoje) – inače bi urednik promjenom ID-a u URL-u
- * mogao urediti tuđu vijest (IDOR).
- */
+/** CMS vijesti. Urednik mijenja samo vlastite vijesti (findEditable). */
 final class NewsAdminController
 {
     private const PO_STRANICI = 10;
@@ -117,7 +112,7 @@ final class NewsAdminController
         return $vijest;
     }
 
-    /** Samo poznata polja obrasca (sve ostalo, npr. autor_id, se ignorira). */
+    /** Samo poznata polja obrasca. */
     private function input(): array
     {
         return [

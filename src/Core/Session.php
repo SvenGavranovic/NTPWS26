@@ -4,10 +4,7 @@ declare(strict_types=1);
 
 namespace App\Core;
 
-/**
- * Sigurno pokretanje i završavanje sesije te "flash" poruke
- * (poruka koja se prikaže jednom, nakon preusmjeravanja).
- */
+/** Sesija i flash poruke. */
 final class Session
 {
     public static function start(): void
@@ -16,27 +13,22 @@ final class Session
             return;
         }
 
-        // Odbij ID sesije koji poslužitelj nije sam izdao (session fixation)
         ini_set('session.use_strict_mode', '1');
-        // ID sesije samo u kolačiću, nikad u URL-u
         ini_set('session.use_only_cookies', '1');
 
         session_name('ZGPRIJAVE');
         session_set_cookie_params([
-            'lifetime' => 0,                                    // traje dok je preglednik otvoren
+            'lifetime' => 0,
             'path'     => base_path_url() . '/',
-            'secure'   => self::isHttps(),                      // na HTTPS-u samo preko HTTPS-a
-            'httponly' => true,                                 // JavaScript ne može pročitati kolačić (XSS)
-            'samesite' => 'Lax',                                // ne šalje se uz POST s tuđih stranica (CSRF)
+            'secure'   => self::isHttps(),
+            'httponly' => true,
+            'samesite' => 'Lax',
         ]);
 
         session_start();
     }
 
-    /**
-     * Potpuno uništava sesiju (podatke na poslužitelju i kolačić),
-     * a zatim pokreće novu, praznu sesiju s novim ID-jem.
-     */
+    /** Briše podatke i kolačić sesije te pokreće novu sesiju. */
     public static function destroy(): void
     {
         $_SESSION = [];
@@ -56,7 +48,7 @@ final class Session
         session_regenerate_id(true);
     }
 
-    /** Spremi poruku za sljedeći prikaz stranice. $type: success, danger, warning, info */
+    /** $type: success, danger, warning, info */
     public static function flash(string $type, string $message): void
     {
         $_SESSION['_flash'][] = ['type' => $type, 'message' => $message];

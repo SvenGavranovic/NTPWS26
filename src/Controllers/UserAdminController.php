@@ -10,12 +10,7 @@ use App\Core\Session;
 use App\Core\View;
 use App\Models\Korisnik;
 
-/**
- * Korisnici i uloge (/admin/korisnici), samo administrator.
- * Administrator mijenja ulogu i aktivnost računa. Deaktivacija odmah prekida
- * i otvorene sesije tog korisnika, jer Auth::user() pri svakom zahtjevu
- * provjerava stupac `aktivan` u bazi.
- */
+/** Korisnici i uloge. */
 final class UserAdminController
 {
     private const PO_STRANICI = 10;
@@ -60,8 +55,7 @@ final class UserAdminController
             return;
         }
 
-        // Administrator ne može sebi oduzeti ulogu ni deaktivirati se.
-        // Tako sustav nikad ne ostane bez ijednog administratora.
+        // vlastiti račun se ne mijenja (sustav uvijek ima admina)
         if ($id === (int) Auth::user()['id']) {
             Session::flash('danger', 'Ne možete mijenjati ulogu ni status vlastitog računa.');
             redirect('/admin/korisnici');
@@ -80,9 +74,7 @@ final class UserAdminController
             'Korisnik %s %s: uloga „%s”, račun %s.',
             $korisnik['ime'], $korisnik['prezime'], $model->roles()[$uloga], $aktivan ? 'aktivan' : 'deaktiviran'
         ));
-        // Povratak na istu stranicu popisa (s filtrima). Dopuštena je SAMO ta putanja
-        // bez razmaka i novih redaka – nema preusmjeravanja na tuđe stranice (open
-        // redirect) ni podmetanja zaglavlja (CRLF injection).
+        // dopušten je samo povratak na popis (open redirect, CRLF)
         $povratak = post('povratak');
         redirect(preg_match('#^/admin/korisnici(\?[^\s]*)?$#D', $povratak) ? $povratak : '/admin/korisnici');
     }

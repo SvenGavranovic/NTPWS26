@@ -7,30 +7,19 @@ namespace App\Services;
 use RuntimeException;
 
 /**
- * Sigurno spremanje slike poslane obrascem (vijesti i prijave problema).
- *
- * Ne vjeruje se ničemu što šalje preglednik:
- *  - naziv datoteke i "Content-Type" iz zahtjeva se IGNORIRAJU,
- *  - stvarna vrsta se čita iz sadržaja datoteke (finfo, "magični bajtovi"),
- *  - getimagesize() mora prepoznati ispravnu sliku s razumnim dimenzijama,
- *  - ekstenzija se određuje iz provjerenog MIME tipa, a ime je nasumično.
- *
- * Gdje se slike spremaju (MAPE):
- *  - vijesti: public/uploads/ – javne slike; .htaccess zabranjuje izvršavanje skripti,
- *  - prijave: storage/uploads/ – IZVAN webroota; preglednik do njih dolazi samo
- *    preko PHP-a koji prije provjeri smije li korisnik vidjeti prijavu.
+ * Spremanje slika iz obrasca. Vrsta se provjerava iz sadržaja datoteke, ime je nasumično.
  */
 final class ImageUpload
 {
     public const MAX_BAJTOVA = 2 * 1024 * 1024; // 2 MB (zadano)
-    private const MAX_DIMENZIJA = 6000;           // px, štiti od "decompression bomb" slika
+    private const MAX_DIMENZIJA = 6000;           // px
 
     private const MAPE = [
         'vijesti' => '/public/uploads/vijesti',
         'prijave' => '/storage/uploads/prijave',
     ];
 
-    /** Dopušteni MIME tipovi → ekstenzija pod kojom se sprema. SVG namjerno nije dopušten (može sadržavati JavaScript). */
+    /** MIME => ekstenzija */
     private const TIPOVI = [
         'image/jpeg' => 'jpg',
         'image/png'  => 'png',
@@ -45,7 +34,7 @@ final class ImageUpload
     {
         $poruka = 'Slika smije imati najviše ' . intdiv($maxBajtova, 1024 * 1024) . ' MB.';
         if ($file === null || !isset($file['error']) || is_array($file['error'])) {
-            return [];  // nije poslano ili je poslano više datoteka pod istim imenom (slika[]=)
+            return [];  // nije poslano ili je poslan niz
         }
         if ($file['error'] === UPLOAD_ERR_NO_FILE) {
             return [];
@@ -57,7 +46,6 @@ final class ImageUpload
             return ['greska' => 'Slika nije ispravno poslana. Pokušajte ponovno.'];
         }
 
-        // Datoteka mora stvarno biti upravo poslana kroz HTTP (ne npr. /etc/passwd)
         if (!is_uploaded_file($file['tmp_name'])) {
             return ['greska' => 'Slika nije ispravno poslana. Pokušajte ponovno.'];
         }
@@ -82,7 +70,6 @@ final class ImageUpload
             mkdir($dir, 0775, true);
         }
 
-        // 32 heksadekadska znaka iz kriptografski sigurnog generatora: ime se ne može pogoditi
         $ime = bin2hex(random_bytes(16)) . '.' . self::TIPOVI[$mime];
 
         if (!move_uploaded_file($file['tmp_name'], $dir . '/' . $ime)) {
@@ -91,7 +78,7 @@ final class ImageUpload
         return ['ime' => $ime, 'mime' => $mime, 'velicina' => (int) $file['size']];
     }
 
-    /** Briše prethodno spremljenu sliku. Ime se provjerava, pa se ne može podmetnuti "../". */
+    /** Prihvaća samo imena koja generira save(). */
     public static function delete(?string $ime, string $mapa): void
     {
         if ($ime === null || !preg_match('/^[a-f0-9]{32}\.(jpg|png|webp)$/', $ime)) {
@@ -103,7 +90,6 @@ final class ImageUpload
         }
     }
 
-    /** Puna putanja do spremljene datoteke (za posluživanje slika izvan webroota). */
     public static function path(string $ime, string $mapa): string
     {
         return self::dir($mapa) . '/' . basename($ime);

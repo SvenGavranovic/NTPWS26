@@ -8,14 +8,12 @@ use App\Models\Kategorija;
 use App\Models\VijestCms;
 use Throwable;
 
-/**
- * Pravila za uređivanje vijesti u CMS-u: tko smije što, validacija i spremanje.
- */
+/** Vijesti u CMS-u: ovlasti, validacija i spremanje. */
 final class NewsAdminService
 {
     public const MAPA_SLIKA = 'vijesti';
     private const STATUSI = ['nacrt', 'objavljeno'];
-    private const MAX_SADRZAJ = 100_000; // znakova HTML-a nakon čišćenja
+    private const MAX_SADRZAJ = 100_000;
 
     private VijestCms $vijesti;
 
@@ -24,10 +22,7 @@ final class NewsAdminService
         $this->vijesti = new VijestCms();
     }
 
-    /**
-     * Administrator smije uređivati SVE vijesti, urednik SAMO svoje.
-     * Poziva se u kontroleru za svaku radnju nad postojećom vijesti.
-     */
+    /** Admin sve vijesti, urednik samo svoje. */
     public static function canEdit(array $korisnik, array $vijest): bool
     {
         return $korisnik['uloga'] === 'admin'
@@ -35,7 +30,6 @@ final class NewsAdminService
     }
 
     /**
-     * Nova vijest. Autor je UVIJEK prijavljeni korisnik (ne čita se iz obrasca).
      * @return array{id?: int, errors: array<string, string>}
      */
     public function create(array $input, ?array $slika, int $autorId): array
@@ -45,7 +39,6 @@ final class NewsAdminService
             return ['errors' => $errors];
         }
 
-        // Slika se sprema tek kad su ostala polja ispravna (nema "napuštenih" datoteka)
         $upload = ImageUpload::save($slika, self::MAPA_SLIKA);
         if (isset($upload['greska'])) {
             return ['errors' => ['slika' => $upload['greska']]];
@@ -55,7 +48,7 @@ final class NewsAdminService
         try {
             $id = $this->vijesti->create($data, $autorId);
         } catch (Throwable $e) {
-            ImageUpload::delete($data['slika'], self::MAPA_SLIKA); // baza nije uspjela → makni i datoteku
+            ImageUpload::delete($data['slika'], self::MAPA_SLIKA);
             throw $e;
         }
         return ['id' => $id, 'errors' => []];
@@ -76,7 +69,7 @@ final class NewsAdminService
 
         $staraSlika = $vijest['slika'];
         $data['slika'] = match (true) {
-            isset($upload['ime'])            => $upload['ime'],  // nova slika zamjenjuje staru
+            isset($upload['ime'])            => $upload['ime'],
             ($input['ukloni_sliku'] ?? '') === '1' => null,
             default                          => $staraSlika,
         };
@@ -88,7 +81,7 @@ final class NewsAdminService
             throw $e;
         }
 
-        // Stara datoteka se briše tek NAKON uspješnog spremanja u bazu
+        // stara slika tek nakon uspješnog UPDATE-a
         if ($staraSlika !== $data['slika']) {
             ImageUpload::delete($staraSlika, self::MAPA_SLIKA);
         }
@@ -102,9 +95,6 @@ final class NewsAdminService
     }
 
     /**
-     * Validacija na poslužitelju. Uzimaju se SAMO poznata polja; autor_id,
-     * datum_objave i sl. iz obrasca se ignoriraju (zaštita od "mass assignment").
-     *
      * @return array{0: array, 1: array<string, string>}
      */
     private function validate(array $input): array
@@ -114,7 +104,6 @@ final class NewsAdminService
         $status  = $input['status'] ?? '';
         $kategorijaId = filter_var($input['kategorija_id'] ?? '', FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
 
-        // HTML iz uređivača čisti se PRIJE validacije i spremanja
         $sadrzaj = HtmlSanitizer::clean($input['sadrzaj'] ?? '');
 
         $errors = [];

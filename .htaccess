@@ -1,6 +1,4 @@
-# Projekt je u htdocs/, pa bi bez ovoga preglednik mogao otvoriti
-# .env, src/, database/ itd. Zato SVE zahtjeve preusmjeravamo u public/,
-# a izvan public/ ništa nije dostupno izravno.
+# Svi zahtjevi idu u public/; ostale mape nisu dostupne iz preglednika.
 
 Options -Indexes
 

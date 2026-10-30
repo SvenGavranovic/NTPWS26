@@ -7,11 +7,7 @@ namespace App\Models;
 use App\Core\Database;
 use PDO;
 
-/**
- * Zadaci (tablica `zadaci`): koja je prijava dodijeljena kojem radniku.
- * Jedna prijava ima najviše jedan zadatak (UNIQUE prijava_id). Status se ovdje
- * NE sprema – čita se iz prijave (jedan izvor istine).
- */
+/** Tablica `zadaci` (najviše jedan zadatak po prijavi). */
 final class Zadatak
 {
     private PDO $db;
@@ -21,10 +17,7 @@ final class Zadatak
         $this->db = Database::connection();
     }
 
-    /**
-     * Dodjela ili preraspodjela. Ako zadatak već postoji (UNIQUE prijava_id),
-     * mijenja se radnik, a napomena prethodnog radnika se briše.
-     */
+    /** Dodjela ili preraspodjela. */
     public function assign(int $prijavaId, int $radnikId, int $adminId): void
     {
         $stmt = $this->db->prepare(
@@ -41,10 +34,7 @@ final class Zadatak
         $stmt->execute([$napomena, $prijavaId]);
     }
 
-    /**
-     * Kanban radnika: otvoreni zadaci i nedavno završeni (zadnjih 14 dana).
-     * Unutar stupca: najhitnije prvo (ENUM se sortira po redoslijedu), pa najstarije.
-     */
+    /** Otvoreni i nedavno završeni zadaci, najhitniji prvi. */
     public function forWorker(int $radnikId): array
     {
         $stmt = $this->db->prepare(

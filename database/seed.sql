@@ -2,19 +2,13 @@
 -- Zagreb Prijave – testni podaci
 -- Pokrenuti NAKON schema.sql.
 --
--- Svi podaci su izmišljeni. E-mail adrese koriste domenu .test koja je
--- rezervirana (RFC 2606) i ne može pripadati stvarnoj osobi.
--- Lozinke su spremljene isključivo kao bcrypt hash (password_hash).
--- Stvarne testne lozinke NISU u repozitoriju – predaju se kroz LMS.
+-- Izmišljeni podaci (domena .test, RFC 2606). Lozinke samo kao bcrypt hash.
 --
--- ID-jevi su navedeni eksplicitno da bi veze (strani ključevi) bile
--- čitljive. AUTO_INCREMENT nakon toga nastavlja od najvećeg ID-a.
 -- =====================================================================
 
 USE zagreb_prijave;
 SET NAMES utf8mb4;
 
--- Sve ili ništa: ako bilo koji INSERT padne, ništa se ne sprema.
 START TRANSACTION;
 
 -- ---------------------------------------------------------------------
@@ -40,8 +34,7 @@ INSERT INTO korisnici (id, ime, prezime, email, lozinka_hash, uloga_id, aktivan,
   (8, 'Petra', 'Neaktivna', 'neaktivna@zagreb-prijave.test',    '$2y$10$RYWbCCQRkfiG06mkNBy7CujfTcIKyTeJSSZ7Eb0iMVAB.C4zblgxO', 1, 0, '2026-10-01 14:00:00');
 
 -- ---------------------------------------------------------------------
--- KATEGORIJE VIJESTI ('Arhiva' je namjerno prazna → nju je dopušteno
--- obrisati, ostale imaju vijesti → brisanje mora biti odbijeno)
+-- KATEGORIJE VIJESTI ('Arhiva' je prazna)
 -- ---------------------------------------------------------------------
 INSERT INTO kategorije_vijesti (id, naziv, opis) VALUES
   (1, 'Obavijesti Grada',         'Opće obavijesti za građane'),
@@ -53,7 +46,7 @@ INSERT INTO kategorije_vijesti (id, naziv, opis) VALUES
 
 -- ---------------------------------------------------------------------
 -- VIJESTI: 6 objavljenih, 2 nacrta, 1 povučena (nacrt s datumom objave)
--- Autori: Lea (2) i Tin (3) → test "urednik ne smije mijenjati tuđu vijest"
+-- Autori: Lea (2) i Tin (3)
 -- ---------------------------------------------------------------------
 INSERT INTO vijesti (id, kategorija_id, autor_id, naslov, sazetak, sadrzaj, slika, status, datum_objave, kreirano_u, azurirano_u) VALUES
   (1, 1, 1, 'Pokrenuta aplikacija Zagreb Prijave',
@@ -130,7 +123,7 @@ INSERT INTO vrste_problema (id, naziv, opis) VALUES
   (9, 'Ostalo',                     'Problem koji ne pripada drugim vrstama');
 
 -- ---------------------------------------------------------------------
--- PRIJAVE – pokrivaju SVE statuse i sve razine hitnosti
+-- PRIJAVE (svi statusi i sve hitnosti)
 --   1, 2, 10  PRIJAVLJENO (2 bez koordinata, 10 od deaktiviranog korisnika)
 --   3         DODIJELJENO
 --   4, 5      U_RADU
@@ -165,9 +158,7 @@ INSERT INTO zadaci (id, prijava_id, radnik_id, dodijelio_id, napomena_radnika, d
 
 -- ---------------------------------------------------------------------
 -- SLIKE PRIJAVA
--- 'prije' za svaku prijavu (učitao građanin), 'poslije' za prijave koje su
--- bile poslane na provjeru (učitao radnik). Same datoteke (zamjenske slike)
--- stvara skripta database/demo_slike.php u storage/uploads/prijave/
+-- Datoteke stvara database/demo_slike.php.
 -- ---------------------------------------------------------------------
 INSERT INTO prijava_slike (prijava_id, ucitao_id, tip, datoteka, mime_tip, velicina, kreirano_u) VALUES
   (1,  6, 'prije',   'demo-p01-prije.png',   'image/png',   4073, '2026-10-27 09:15:00'),
@@ -186,8 +177,7 @@ INSERT INTO prijava_slike (prijava_id, ucitao_id, tip, datoteka, mime_tip, velic
   (10, 8, 'prije',   'demo-p10-prije.png',   'image/png',   4442, '2026-10-08 12:30:00');
 
 -- ---------------------------------------------------------------------
--- POVIJEST STATUSA – kronološki tragovi koji odgovaraju trenutnom
--- statusu svake prijave (tko, kada, iz, u, komentar)
+-- POVIJEST STATUSA
 -- ---------------------------------------------------------------------
 INSERT INTO povijest_statusa (prijava_id, korisnik_id, iz_statusa, u_status, komentar, kreirano_u) VALUES
   -- P1

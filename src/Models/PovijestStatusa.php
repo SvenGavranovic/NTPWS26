@@ -7,10 +7,7 @@ namespace App\Models;
 use App\Core\Database;
 use PDO;
 
-/**
- * Revizijski trag statusa prijave (tablica `povijest_statusa`).
- * Retci se samo DODAJU – nema metode za izmjenu ni brisanje.
- */
+/** Povijest statusa prijave (zapisi se samo dodaju). */
 final class PovijestStatusa
 {
     private PDO $db;
@@ -29,7 +26,6 @@ final class PovijestStatusa
         $stmt->execute([$prijavaId, $korisnikId, $iz, $u, $komentar]);
     }
 
-    /** Kronološki tijek, uz ime i ulogu osobe koja je promijenila status. */
     public function forReport(int $prijavaId): array
     {
         $stmt = $this->db->prepare(

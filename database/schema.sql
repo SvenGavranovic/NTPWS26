@@ -2,8 +2,7 @@
 -- Zagreb Prijave – shema baze podataka
 -- Ciljni sustav: MariaDB 10.11 (XAMPP), kompatibilno s MySQL 8.0.16+
 --
--- UPOZORENJE: skripta BRIŠE postojeće tablice i ponovno ih stvara.
--- Namijenjena je razvoju i demonstraciji. Redoslijed: schema.sql → seed.sql
+-- Briše i ponovno stvara sve tablice. Redoslijed: schema.sql → seed.sql
 -- =====================================================================
 
 CREATE DATABASE IF NOT EXISTS zagreb_prijave
@@ -14,8 +13,6 @@ USE zagreb_prijave;
 
 SET NAMES utf8mb4;
 
--- Privremeno isključujemo provjeru stranih ključeva samo da bi se tablice
--- mogle obrisati bez obzira na redoslijed. Na kraju se ponovno uključuje.
 SET FOREIGN_KEY_CHECKS = 0;
 DROP TABLE IF EXISTS pokusaji_prijave;
 DROP TABLE IF EXISTS povijest_statusa;
@@ -33,8 +30,6 @@ SET FOREIGN_KEY_CHECKS = 1;
 
 -- ---------------------------------------------------------------------
 -- 1. ULOGE
--- Šifrarnik uloga. Aplikacija u kodu provjerava stupac `kod`
--- (npr. 'admin'), a ne `id`, kako bi provjere bile čitljive.
 -- ---------------------------------------------------------------------
 CREATE TABLE uloge (
   id    TINYINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -47,11 +42,7 @@ CREATE TABLE uloge (
 
 -- ---------------------------------------------------------------------
 -- 2. KORISNICI
--- Jedan korisnik ima točno jednu ulogu.
--- E-mail je UNIQUE; collation *_ci je neosjetljiv na velika/mala slova,
--- pa su 'Ana@x.hr' i 'ana@x.hr' duplikat i baza ih odbija.
--- Korisnici se ne brišu nego deaktiviraju (aktivan = 0), jer su vezani
--- uz vijesti, prijave i povijest statusa koje moraju ostati sačuvane.
+-- Korisnici se ne brišu, nego deaktiviraju (aktivan = 0).
 -- ---------------------------------------------------------------------
 CREATE TABLE korisnici (
   id             INT UNSIGNED     NOT NULL AUTO_INCREMENT,
@@ -88,11 +79,7 @@ CREATE TABLE kategorije_vijesti (
 
 -- ---------------------------------------------------------------------
 -- 4. VIJESTI
--- status: 'nacrt' (nije javno) ili 'objavljeno' (javno).
--- "Povlačenje" vijesti = vraćanje statusa u 'nacrt'.
--- sadrzaj sadrži HTML iz rich-text uređivača, ALI tek nakon što ga
--- HTMLPurifier očisti (sanitizacija se radi u PHP-u prije spremanja).
--- slika: samo naziv datoteke (nasumično ime), datoteka je na disku.
+-- sadrzaj: HTML očišćen HTMLPurifierom; slika: ime datoteke.
 -- ---------------------------------------------------------------------
 CREATE TABLE vijesti (
   id            INT UNSIGNED      NOT NULL AUTO_INCREMENT,
@@ -109,10 +96,10 @@ CREATE TABLE vijesti (
   PRIMARY KEY (id),
   KEY idx_vijesti_kategorija (kategorija_id),
   KEY idx_vijesti_autor (autor_id),
-  KEY idx_vijesti_status_datum (status, datum_objave),  -- javni popis: WHERE status='objavljeno' ORDER BY datum_objave
+  KEY idx_vijesti_status_datum (status, datum_objave),
   CONSTRAINT fk_vijesti_kategorija
     FOREIGN KEY (kategorija_id) REFERENCES kategorije_vijesti (id)
-    ON UPDATE CASCADE ON DELETE RESTRICT,     -- kategorija s vijestima se NE MOŽE obrisati
+    ON UPDATE CASCADE ON DELETE RESTRICT,     -- kategorija s vijestima se ne može obrisati
   CONSTRAINT fk_vijesti_autor
     FOREIGN KEY (autor_id) REFERENCES korisnici (id)
     ON UPDATE CASCADE ON DELETE RESTRICT,
@@ -121,7 +108,7 @@ CREATE TABLE vijesti (
 ) ENGINE=InnoDB;
 
 -- ---------------------------------------------------------------------
--- 5. GRADSKE ČETVRTI (šifrarnik, 17 službenih četvrti Grada Zagreba)
+-- 5. GRADSKE ČETVRTI
 -- ---------------------------------------------------------------------
 CREATE TABLE gradske_cetvrti (
   id    TINYINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -131,7 +118,7 @@ CREATE TABLE gradske_cetvrti (
 ) ENGINE=InnoDB;
 
 -- ---------------------------------------------------------------------
--- 6. VRSTE PROBLEMA (šifrarnik: rupa na cesti, javna rasvjeta, ...)
+-- 6. VRSTE PROBLEMA
 -- ---------------------------------------------------------------------
 CREATE TABLE vrste_problema (
   id    SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -143,12 +130,7 @@ CREATE TABLE vrste_problema (
 
 -- ---------------------------------------------------------------------
 -- 7. PRIJAVE PROBLEMA
--- Status je zapisan SAMO ovdje (jedan izvor istine).
--- Redoslijed vrijednosti u ENUM-u hitnosti je namjeran: MySQL sortira
--- ENUM po indeksu, pa ORDER BY hitnost DESC daje kriticna → niska.
--- lat/lng su opcionalni (korisnik može označiti točku na karti).
--- CHECK na koordinatama je široka "zadnja linija obrane" – preciznu
--- provjeru granica Zagreba radi PHP.
+-- Status je samo ovdje. ENUM hitnosti je poredan od niske do kritične.
 -- ---------------------------------------------------------------------
 CREATE TABLE prijave (
   id          INT UNSIGNED      NOT NULL AUTO_INCREMENT,
@@ -156,7 +138,7 @@ CREATE TABLE prijave (
   cetvrt_id   TINYINT UNSIGNED  NOT NULL,
   vrsta_id    SMALLINT UNSIGNED NOT NULL,
   naslov      VARCHAR(150)      NOT NULL,   -- kratki naslov (kartica na kanbanu)
-  opis        TEXT              NOT NULL,   -- običan tekst, NE HTML
+  opis        TEXT              NOT NULL,   -- običan tekst, ne HTML
   adresa      VARCHAR(255)      NULL,
   lat         DECIMAL(9,6)      NULL,
   lng         DECIMAL(9,6)      NULL,
@@ -186,10 +168,7 @@ CREATE TABLE prijave (
 
 -- ---------------------------------------------------------------------
 -- 8. SLIKE PRIJAVE
--- tip 'prije'  = slika koju šalje građanin uz prijavu
--- tip 'poslije' = obavezna slika radnika pri slanju na provjeru
--- Slike nemaju smisla bez prijave → ON DELETE CASCADE
--- (fizičke datoteke s diska briše PHP).
+-- tip 'prije' (građanin) i 'poslije' (radnik).
 -- ---------------------------------------------------------------------
 CREATE TABLE prijava_slike (
   id           INT UNSIGNED  NOT NULL AUTO_INCREMENT,
@@ -214,17 +193,14 @@ CREATE TABLE prijava_slike (
 
 -- ---------------------------------------------------------------------
 -- 9. ZADACI
--- Dodjela prijave radniku. Jedna prijava ima najviše jedan zadatak
--- (UNIQUE prijava_id). Ako admin preraspodijeli posao, mijenja se
--- radnik_id u istom retku; trag ostaje u povijest_statusa.
--- Status se NE duplicira ovdje – čita se iz prijave (JOIN).
+-- Najviše jedan zadatak po prijavi; status se čita iz prijave.
 -- ---------------------------------------------------------------------
 CREATE TABLE zadaci (
   id               INT UNSIGNED NOT NULL AUTO_INCREMENT,
   prijava_id       INT UNSIGNED NOT NULL,
   radnik_id        INT UNSIGNED NOT NULL,
   dodijelio_id     INT UNSIGNED NOT NULL,   -- administrator koji je dodijelio
-  napomena_radnika TEXT         NULL,       -- obavezna pri prijelazu u CEKA_PROVJERU (provjera u PHP-u)
+  napomena_radnika TEXT         NULL,       -- obavezna pri slanju na provjeru
   dodijeljeno_u    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
   azurirano_u      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
@@ -243,17 +219,16 @@ CREATE TABLE zadaci (
 ) ENGINE=InnoDB;
 
 -- ---------------------------------------------------------------------
--- 10. POVIJEST STATUSA (revizijski trag)
--- Svaki prijelaz statusa = jedan novi redak. Retci se nikad ne mijenjaju.
--- iz_statusa je NULL za prvi zapis (nastanak prijave).
+-- 10. POVIJEST STATUSA
+-- iz_statusa je NULL za prvi zapis.
 -- ---------------------------------------------------------------------
 CREATE TABLE povijest_statusa (
   id          INT UNSIGNED NOT NULL AUTO_INCREMENT,
   prijava_id  INT UNSIGNED NOT NULL,
-  korisnik_id INT UNSIGNED NOT NULL,        -- TKO je napravio promjenu
+  korisnik_id INT UNSIGNED NOT NULL,        -- tko je napravio promjenu
   iz_statusa  ENUM('PRIJAVLJENO','DODIJELJENO','U_RADU','CEKA_PROVJERU','VRACENO','ZAVRSENO') NULL,
   u_status    ENUM('PRIJAVLJENO','DODIJELJENO','U_RADU','CEKA_PROVJERU','VRACENO','ZAVRSENO') NOT NULL,
-  komentar    TEXT         NULL,            -- obavezan kod VRACENO (provjera u PHP-u)
+  komentar    TEXT         NULL,            -- obavezan kod VRACENO
   kreirano_u  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   KEY idx_povijest_prijava (prijava_id, kreirano_u),
@@ -267,9 +242,7 @@ CREATE TABLE povijest_statusa (
 ) ENGINE=InnoDB;
 
 -- ---------------------------------------------------------------------
--- 11. RADOVI NA INFRASTRUKTURI (unosi administrator, prikaz na karti)
--- Vrsta radova i utjecaj na promet su fiksni popisi → ENUM.
--- kraj je NULL ako završetak još nije poznat.
+-- 11. RADOVI NA INFRASTRUKTURI
 -- ---------------------------------------------------------------------
 CREATE TABLE radovi (
   id                INT UNSIGNED     NOT NULL AUTO_INCREMENT,
@@ -301,12 +274,8 @@ CREATE TABLE radovi (
 ) ENGINE=InnoDB;
 
 -- ---------------------------------------------------------------------
--- 12. NEUSPJELI POKUŠAJI PRIJAVE (zaštita od pogađanja lozinke)
--- Svaki neuspjeli login upisuje redak. Ako je u zadnjih 15 minuta bilo
--- previše pokušaja za isti e-mail ili s iste IP adrese, prijava se
--- privremeno odbija (HTTP 429). Uspješna prijava briše retke za taj e-mail.
--- Tablica nije povezana stranim ključem s korisnicima namjerno: bilježe
--- se i pokušaji za e-mailove koji ne postoje.
+-- 12. NEUSPJELI POKUŠAJI PRIJAVE
+-- Bez stranog ključa: bilježe se i nepostojeći e-mailovi.
 -- ---------------------------------------------------------------------
 CREATE TABLE pokusaji_prijave (
   id      BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,

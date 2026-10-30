@@ -5,15 +5,9 @@ declare(strict_types=1);
 namespace App\Core;
 
 /**
- * Router: povezuje HTTP metodu + putanju s metodom kontrolera.
- *
- * Opcije rute (provjeravaju se PRIJE poziva kontrolera):
- *   'auth'  => true              samo za prijavljene
- *   'uloge' => ['admin', ...]    samo za navedene uloge (podrazumijeva 'auth')
- *   'gost'  => true              samo za neprijavljene (npr. obrazac za prijavu)
- *
- * Svaki zahtjev koji mijenja podatke (POST/PUT/PATCH/DELETE) mora imati
- * ispravan CSRF token – bez iznimke, pa ga je nemoguće zaboraviti na pojedinoj ruti.
+ * Opcije rute: 'auth' (prijavljeni), 'uloge' => [...], 'gost' (neprijavljeni).
+ * Zahtjevi koji nisu GET moraju imati ispravan CSRF token.
+ * Za putanje /api/... pogreške su JSON, a neprijavljeni dobiva 401 umjesto preusmjeravanja.
  */
 final class Router
 {
@@ -28,6 +22,16 @@ final class Router
     public function post(string $path, array $handler, array $options = []): void
     {
         $this->add('POST', $path, $handler, $options);
+    }
+
+    public function patch(string $path, array $handler, array $options = []): void
+    {
+        $this->add('PATCH', $path, $handler, $options);
+    }
+
+    public function delete(string $path, array $handler, array $options = []): void
+    {
+        $this->add('DELETE', $path, $handler, $options);
     }
 
     private function add(string $method, string $path, array $handler, array $options): void
@@ -45,6 +49,7 @@ final class Router
 
     public function dispatch(string $method, string $path): void
     {
+        $api = Api::isApiPath($path);
         $allowed = [];
 
         foreach ($this->routes as $route) {
@@ -57,10 +62,9 @@ final class Router
                 continue;
             }
 
-            // Parametri iz putanje ({id}) kao cijeli brojevi
             $params = array_map('intval', array_filter($matches, 'is_string', ARRAY_FILTER_USE_KEY));
 
-            if (!$this->passesGuards($method, $route['options'])) {
+            if (!$this->passesGuards($method, $route['options'], $api)) {
                 return;
             }
 
@@ -69,20 +73,21 @@ final class Router
             return;
         }
 
-        // Putanja postoji, ali ne za ovu metodu → 405, inače 404
+        // 405 ako putanja postoji za drugu metodu, inače 404
         if ($allowed !== []) {
             header('Allow: ' . implode(', ', array_unique($allowed)));
-            View::error(405);
+            $api ? Api::error(405, 'Metoda ' . $method . ' nije dopuštena za ovaj resurs.') : View::error(405);
             return;
         }
-        View::error(404);
+        $api ? Api::error(404, 'Resurs ne postoji.') : View::error(404);
     }
 
-    /** Vraća false ako zahtjev ne smije proći (i već je poslao odgovor). */
-    private function passesGuards(string $method, array $options): bool
+    /** false = zahtjev je odbijen (odgovor je već poslan). */
+    private function passesGuards(string $method, array $options, bool $api): bool
     {
         if ($method !== 'GET' && !Csrf::isValid()) {
-            View::error(403, 'Sigurnosni token nije ispravan ili je istekao. Osvježite stranicu i pokušajte ponovno.');
+            $poruka = 'Sigurnosni token nije ispravan ili je istekao. Osvježite stranicu i pokušajte ponovno.';
+            $api ? Api::error(403, 'CSRF token nedostaje ili nije ispravan (zaglavlje X-CSRF-Token).') : View::error(403, $poruka);
             return false;
         }
 
@@ -93,12 +98,16 @@ final class Router
         $uloge = $options['uloge'] ?? [];
 
         if ((!empty($options['auth']) || $uloge !== []) && !Auth::check()) {
+            if ($api) {
+                Api::error(401, 'Potrebna je prijava.');
+                return false;
+            }
             Session::flash('warning', 'Za pristup ovoj stranici morate se prijaviti.');
             redirect('/racun/prijava');
         }
 
         if ($uloge !== [] && !Auth::hasRole(...$uloge)) {
-            View::error(403);
+            $api ? Api::error(403, 'Nemate ovlasti za ovu radnju.') : View::error(403);
             return false;
         }
 

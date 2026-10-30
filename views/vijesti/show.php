@@ -30,9 +30,7 @@
 
         <div class="vijest-sadrzaj">
             <?php
-            // Sadržaj je HTML iz uređivača i ispisuje se BEZ escapinga, inače bi se
-            // vidjele oznake <p>. Siguran je jer ga HTMLPurifier čisti PRI SPREMANJU
-            // (CMS, faza 4): ostaju samo dopuštene oznake, bez <script> i on*="" atributa.
+            // očišćeno HTMLPurifierom pri spremanju
             echo $vijest['sadrzaj'];
             ?>
         </div>

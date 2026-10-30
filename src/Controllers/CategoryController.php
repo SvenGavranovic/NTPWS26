@@ -9,7 +9,7 @@ use App\Core\View;
 use App\Models\Kategorija;
 use App\Services\CategoryService;
 
-/** Kategorije vijesti (/admin/kategorije), samo administrator (config/routes.php). */
+/** Kategorije vijesti. */
 final class CategoryController
 {
     public function index(): void

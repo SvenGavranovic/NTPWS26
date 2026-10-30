@@ -1,10 +1,4 @@
-/*
- * Quill rich-text uređivač za sadržaj vijesti.
- *
- * Obrazac i dalje šalje obično polje <textarea name="sadrzaj">: Quill se
- * prikazuje umjesto njega, a prije slanja se HTML iz uređivača upiše u polje.
- * Bez JavaScripta ostaje vidljivo obično polje (obrazac i dalje radi).
- */
+// Quill uređivač umjesto polja <textarea name="sadrzaj">
 (function () {
     var polje = document.getElementById('sadrzaj');
     var okvir = document.getElementById('uredjivac');
@@ -15,7 +9,7 @@
     var quill = new Quill(okvir, {
         theme: 'snow',
         modules: {
-            // Samo oznake koje dopušta i HTMLPurifier na poslužitelju (HtmlSanitizer.php)
+            // iste oznake kao u HtmlSanitizer.php
             toolbar: [
                 [{ header: [2, 3, false] }],
                 ['bold', 'italic', 'underline', 'strike'],
@@ -25,7 +19,6 @@
         }
     });
 
-    // Postojeći sadržaj (već očišćen na poslužitelju) učitava se u uređivač
     quill.setContents(quill.clipboard.convert({ html: polje.value }));
 
     polje.classList.add('d-none');
@@ -33,8 +26,7 @@
 
     document.getElementById('obrazac-vijesti').addEventListener('submit', function () {
         var prazno = quill.getText().trim() === '';
-        // getSemanticHTML daje standardni HTML (<ul>/<ol>); Quill 2.0.3 razmake
-        // pretvara u &nbsp;, pa ih vraćamo u obične razmake
+        // Quill 2.0.3: getSemanticHTML() razmake vraća kao &nbsp;
         polje.value = prazno ? '' : quill.getSemanticHTML().replace(/&nbsp;/g, ' ');
     });
 })();

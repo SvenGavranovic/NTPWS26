@@ -4,21 +4,11 @@ declare(strict_types=1);
 
 namespace App\Services;
 
-/**
- * Statusi i hitnosti prijave: nazivi, boje i DOPUŠTENI PRIJELAZI (state machine).
- */
+/** Statusi, hitnosti i dopušteni prijelazi prijave. */
 final class StatusPrijave
 {
     /**
-     * Jedino mjesto gdje je zapisano koji su prijelazi dopušteni i tko ih smije napraviti:
-     * iz statusa => [u status => uloga]. Sve što nije u tablici je zabranjeno.
-     *
-     *   PRIJAVLJENO → DODIJELJENO → U_RADU → CEKA_PROVJERU → ZAVRSENO
-     *                                  ↑            ↓
-     *                                  └── VRACENO ←┘
-     *
-     * Prijelaz "→ DODIJELJENO" iz DODIJELJENO/U_RADU/VRACENO je preraspodjela drugom radniku.
-     * Radnik NIKAD ne može postaviti ZAVRSENO – to smije samo administrator.
+     * iz => [u => uloga]. Prijelaz u DODIJELJENO iz DODIJELJENO/U_RADU/VRACENO je preraspodjela.
      */
     public const PRIJELAZI = [
         'PRIJAVLJENO'   => ['DODIJELJENO' => 'admin'],
@@ -29,13 +19,12 @@ final class StatusPrijave
         'ZAVRSENO'      => [],
     ];
 
-    /** Smije li uloga prebaciti prijavu iz jednog statusa u drugi. */
     public static function canTransition(string $iz, string $u, string $uloga): bool
     {
         return (self::PRIJELAZI[$iz][$u] ?? null) === $uloga;
     }
 
-    /** kod => [naziv, Bootstrap boja oznake, objašnjenje za građanina] */
+    /** kod => [naziv, boja, opis] */
     public const STATUSI = [
         'PRIJAVLJENO'   => ['Prijavljeno', 'secondary', 'Prijava je zaprimljena i čeka obradu.'],
         'DODIJELJENO'   => ['Dodijeljeno', 'info', 'Prijava je dodijeljena radniku.'],
@@ -57,7 +46,6 @@ final class StatusPrijave
         return isset(self::STATUSI[$status]);
     }
 
-    /** HTML oznaka statusa (Bootstrap badge). Vrijednosti su fiksne iz konstante, ali ih ipak escapeamo. */
     public static function badge(string $status): string
     {
         [$naziv, $boja] = self::STATUSI[$status] ?? [$status, 'secondary'];

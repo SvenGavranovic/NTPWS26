@@ -48,7 +48,6 @@ $vlastita = (int) $prijava['korisnik_id'] === $mojId;
         <?php endforeach; ?>
 
         <h2 class="h5 mt-2">Opis</h2>
-        <!-- Opis je običan tekst: najprije escaping, zatim nl2br za prijelome redaka -->
         <p><?= nl2br(e($prijava['opis'])) ?></p>
     </div>
 
@@ -94,7 +93,6 @@ $vlastita = (int) $prijava['korisnik_id'] === $mojId;
                         <?php elseif ($sluzba): ?>
                             <?= e($h['osoba']) ?> <span class="text-body-secondary">(<?= e($h['uloga']) ?>)</span>
                         <?php else: ?>
-                            <!-- Građanin ne vidi imena zaposlenika, samo njihovu ulogu -->
                             <?= e($h['uloga']) ?>
                         <?php endif; ?>
                     </div>

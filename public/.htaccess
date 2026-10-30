@@ -1,5 +1,4 @@
-# Front controller: sve što nije postojeća datoteka (CSS, JS, slika)
-# obrađuje public/index.php.
+# Sve što nije postojeća datoteka obrađuje index.php.
 
 Options -Indexes
 

@@ -7,7 +7,6 @@
  * @var int $mojId     prijavljeni administrator (vlastiti račun se ne može mijenjati)
  */
 $povratak = $paginator->url($paginator->page);
-// url() dodaje osnovnu putanju aplikacije; kontroler očekuje putanju bez nje
 $povratak = substr($povratak, strlen(base_path_url()));
 ?>
 <h1 class="h2 mb-3">Korisnici</h1>

@@ -11,13 +11,10 @@ use App\Models\Prijava;
 use App\Models\Zadatak;
 use App\Services\ZadatakService;
 
-/**
- * Kanban radnika (/radnik/zadaci). Router pušta samo ulogu 'radnik', a
- * ZadatakService za svaku radnju provjerava je li zadatak dodijeljen baš njemu.
- */
+/** Kanban radnika i radnje nad vlastitim zadacima. */
 final class ZadatakController
 {
-    /** Stupci kanbana: status => naslov stupca */
+    /** status => naslov stupca */
     private const STUPCI = [
         'DODIJELJENO'   => 'Novi zadaci',
         'VRACENO'       => 'Vraćeno na doradu',
@@ -41,7 +38,7 @@ final class ZadatakController
         ]);
     }
 
-    /** Početak rada (DODIJELJENO/VRACENO → U_RADU). Poziva ga gumb ili povlačenje kartice. */
+    /** DODIJELJENO/VRACENO → U_RADU */
     public function start(int $id): void
     {
         $prijava = $this->find($id);
@@ -50,7 +47,7 @@ final class ZadatakController
         }
     }
 
-    /** Slanje na provjeru (U_RADU → CEKA_PROVJERU) sa slikom "poslije" i napomenom. */
+    /** U_RADU → CEKA_PROVJERU (slika "poslije" i napomena). */
     public function submit(int $id): void
     {
         $prijava = $this->find($id);
@@ -69,10 +66,7 @@ final class ZadatakController
         return $prijava;
     }
 
-    /**
-     * Kanban šalje fetch s "Accept: application/json" i dobiva JSON;
-     * obični obrazac (bez JavaScripta) dobiva flash poruku i preusmjeravanje.
-     */
+    /** JSON za fetch iz kanbana, inače flash poruka i preusmjeravanje. */
     private function respond(?string $greska, string $uspjeh, int $id): void
     {
         if (wants_json()) {

@@ -1,0 +1,16 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "vijest-izmjena",
+  "title": "Izmjena vijesti (PATCH /api/v1/vijesti/{id})",
+  "description": "Šalju se samo polja koja se mijenjaju.",
+  "type": "object",
+  "minProperties": 1,
+  "additionalProperties": false,
+  "properties": {
+    "naslov":        { "type": "string", "minLength": 3, "maxLength": 200 },
+    "sazetak":       { "type": "string", "minLength": 10, "maxLength": 500 },
+    "sadrzaj":       { "type": "string", "minLength": 1, "maxLength": 100000 },
+    "kategorija_id": { "type": "integer", "minimum": 1 },
+    "status":        { "type": "string", "enum": ["nacrt", "objavljeno"] }
+  }
+}

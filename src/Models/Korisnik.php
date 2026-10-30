@@ -7,10 +7,7 @@ namespace App\Models;
 use App\Core\Database;
 use PDO;
 
-/**
- * Pristup tablici `korisnici`. Ovdje su SAMO SQL upiti, bez poslovne logike.
- * Svi upiti koriste prepared statements s parametrima (?), nikad spajanje stringova.
- */
+/** Tablica `korisnici`. */
 final class Korisnik
 {
     private PDO $db;
@@ -20,7 +17,7 @@ final class Korisnik
         $this->db = Database::connection();
     }
 
-    /** Korisnik s kodom uloge, BEZ hasha lozinke (za Auth::user()). */
+    /** Korisnik s ulogom, bez hasha lozinke. */
     public function findById(int $id): ?array
     {
         $stmt = $this->db->prepare(
@@ -34,7 +31,7 @@ final class Korisnik
         return $stmt->fetch() ?: null;
     }
 
-    /** Korisnik S hashom lozinke – koristi se samo pri prijavi. */
+    /** Za prijavu (s hashom lozinke). */
     public function findForLogin(string $email): ?array
     {
         $stmt = $this->db->prepare(
@@ -65,10 +62,7 @@ final class Korisnik
         return $stmt->fetchColumn() !== false;
     }
 
-    /**
-     * Novi korisnik s ulogom zadanom KODOM ('korisnik').
-     * INSERT ... SELECT dohvaća id uloge u istom upitu.
-     */
+    /** Uloga se zadaje kodom (INSERT ... SELECT). */
     public function create(string $ime, string $prezime, string $email, string $lozinkaHash, string $ulogaKod): int
     {
         $stmt = $this->db->prepare(
@@ -94,9 +88,8 @@ final class Korisnik
         $stmt = $this->db->prepare('UPDATE korisnici SET lozinka_hash = ? WHERE id = ?');
         $stmt->execute([$hash, $id]);
     }
-    // --- Administracija korisnika ------------------------------------------
+    // --- Administracija ---
 
-    /** Popis za administratora: pretraga po imenu/e-mailu, filtar uloge i statusa. */
     public function findForAdmin(string $q, ?string $uloga, ?int $aktivan, int $limit, int $offset): array
     {
         [$where, $params] = $this->adminWhere($q, $uloga, $aktivan);
@@ -129,10 +122,7 @@ final class Korisnik
         return (int) $stmt->fetchColumn();
     }
 
-    /**
-     * Aktivni radnici s brojem otvorenih zadataka (za odabir pri dodjeli –
-     * administrator vidi koliko je tko opterećen).
-     */
+    /** Aktivni radnici s brojem otvorenih zadataka. */
     public function activeWorkers(): array
     {
         return $this->db->query(
@@ -148,13 +138,13 @@ final class Korisnik
         )->fetchAll();
     }
 
-    /** kod => naziv svih uloga (redoslijed po id-u: od najmanjih ovlasti). */
+    /** kod => naziv */
     public function roles(): array
     {
         return $this->db->query('SELECT kod, naziv FROM uloge ORDER BY id')->fetchAll(PDO::FETCH_KEY_PAIR);
     }
 
-    /** Uloga se zadaje KODOM; INSERT/UPDATE ... SELECT odbija nepostojeću ulogu (0 redaka). */
+    /** Nepostojeća uloga ne mijenja ništa (JOIN ne pronađe redak). */
     public function updateRoleAndStatus(int $id, string $ulogaKod, bool $aktivan): void
     {
         $stmt = $this->db->prepare(

@@ -10,10 +10,7 @@ use App\Core\View;
 use App\Models\Prijava;
 use App\Services\ProfileService;
 
-/**
- * Profil prijavljenog korisnika. Ruta zahtijeva prijavu (config/routes.php),
- * a ID korisnika se uzima isključivo iz sesije.
- */
+/** Profil prijavljenog korisnika. */
 final class ProfileController
 {
     public function show(): void
@@ -50,7 +47,6 @@ final class ProfileController
             return;
         }
 
-        // Nakon promjene lozinke novi ID sesije, kao i kod prijave
         session_regenerate_id(true);
         Session::flash('success', 'Lozinka je promijenjena.');
         redirect('/racun/profil');

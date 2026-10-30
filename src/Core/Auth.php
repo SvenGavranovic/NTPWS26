@@ -7,12 +7,8 @@ namespace App\Core;
 use App\Models\Korisnik;
 
 /**
- * Tko je trenutno prijavljen.
- *
- * U sesiji se čuva SAMO id korisnika. Uloga i status "aktivan" čitaju se iz
- * baze pri SVAKOM zahtjevu. Zato:
- *  - deaktivacija računa odmah prekida i već otvorene sesije,
- *  - promjena uloge vrijedi odmah, bez ponovne prijave.
+ * Prijavljeni korisnik. U sesiji je samo ID; uloga i status čitaju se iz baze
+ * pri svakom zahtjevu.
  */
 final class Auth
 {
@@ -34,7 +30,7 @@ final class Auth
         $korisnik = (new Korisnik())->findById($id);
 
         if ($korisnik === null || (int) $korisnik['aktivan'] !== 1) {
-            // Račun je obrisan ili deaktiviran dok je korisnik bio prijavljen
+            // obrisan ili deaktiviran račun
             Session::destroy();
             Session::flash('warning', 'Vaš račun nije aktivan. Obratite se administratoru.');
             return null;
@@ -48,7 +44,7 @@ final class Auth
         return self::user() !== null;
     }
 
-    /** Ima li prijavljeni korisnik jednu od navedenih uloga (po kodu: 'admin', 'urednik'...). */
+    /** Ima li korisnik jednu od uloga (po kodu). */
     public static function hasRole(string ...$uloge): bool
     {
         $user = self::user();
@@ -57,7 +53,6 @@ final class Auth
 
     public static function login(array $korisnik): void
     {
-        // Novi ID sesije nakon prijave – stari (možda podmetnuti) ID postaje bezvrijedan
         session_regenerate_id(true);
         $_SESSION['korisnik_id'] = (int) $korisnik['id'];
         Csrf::regenerate();

@@ -52,6 +52,30 @@ prijava() {
     echo "$jar"
 }
 
+# Vrijednost iz JSON odgovora ($T/body) po putanji, npr. jv data.0.id ili jv meta.ukupno.
+# Za niz ispisuje broj elemenata, za nepostojeći ključ "∅".
+jv() {
+    "$PHP" -r '$d = json_decode(file_get_contents($argv[1]), true);
+        foreach (explode(".", $argv[2]) as $k) {
+            if (!is_array($d) || !array_key_exists($k, $d)) { echo "∅"; exit; }
+            $d = $d[$k];
+        }
+        echo is_array($d) ? count($d) : (is_bool($d) ? ($d ? "true" : "false") : ($d === null ? "null" : $d));' "$TW/body" "$1"
+}
+
+# Prijava preko API-ja (GET /sesija za token, POST /sesija). Ispisuje datoteku s kolačićima;
+# CSRF token za daljnje zahtjeve je u datoteci "<jar>.csrf".
+api_prijava() {
+    local jar="$T/api_$1.jar" t
+    rm -f "$jar"
+    curl -s -o "$T/body" -b "$jar" -c "$jar" "$B/api/v1/sesija"
+    t=$(jv data.csrf)
+    curl -s -o "$T/body" -b "$jar" -c "$jar" -H "X-CSRF-Token: $t" -H 'Content-Type: application/json' \
+        --data "{\"email\":\"$1\",\"lozinka\":\"$LOZ\"}" "$B/api/v1/sesija"
+    jv data.csrf > "$jar.csrf"
+    echo "$jar"
+}
+
 # Testne slike (ispravan PNG 1×1 piksel)
 PNG_B64='iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=='
 napravi_png() { echo "$PNG_B64" | base64 -d > "$1"; }

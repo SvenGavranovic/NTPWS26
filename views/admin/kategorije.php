@@ -65,7 +65,6 @@ $uredjivanje = isset($kategorija['id']);
                                     <button type="submit" class="btn btn-sm btn-outline-danger">Obriši</button>
                                 </form>
                             <?php else: ?>
-                                <!-- Gumb je onemogućen radi preglednosti; pravilo ionako provjerava poslužitelj -->
                                 <button type="button" class="btn btn-sm btn-outline-danger" disabled
                                         title="Kategorija s vijestima ne može se obrisati">Obriši</button>
                             <?php endif; ?>

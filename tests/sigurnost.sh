@@ -345,7 +345,45 @@ hasnt "XSS u razlogu vraćanja escapean" '<img src=x'
 has   "  → razlog je ipak prikazan (kao tekst)" '&lt;img src=x'
 
 # ---------------------------------------------------------------------
-naslov "12. Pogađanje lozinke – brute force (A07)"
+naslov "12. REST API (/api/v1)"
+# Isti napadi kao na web, ali preko JSON API-ja, plus napadi specifični za API.
+# ---------------------------------------------------------------------
+A="$B/api/v1"
+code -G --data-urlencode "q=%' UNION SELECT id,email,lozinka_hash,4,5,6,7,8,9,10,11 FROM korisnici -- " "$A/vijesti" >/dev/null
+hasnt "SQLi (UNION) u ?q= ne vraća hasheve" '\$2y\$'
+eq    "  → 0 rezultata" "$(jv meta.ukupno)" "0"
+code "$A/vijesti?kategorija=1%20OR%201=1&po_stranici=50" >/dev/null
+hasnt "SQLi u ?kategorija= ne otkriva nacrte" 'NACRT'
+code "$A/prijave?status=ZAVRSENO'%20OR%20'1'='1" >/dev/null
+eq    "SQLi u ?status= prijava → filtar ignoriran" "$(jv meta.ukupno)" "$(echo 'SELECT COUNT(*) FROM prijave' | SQL)"
+code "$A/prijave?po_stranici=100" >/dev/null
+hasnt "javni popis prijava bez e-mailova i hasheva" '@zagreb-prijave.test\|\$2y\$'
+hasnt "  → bez opisa i imena prijavitelja" '"opis"\|prijavitelj'
+check "detalj prijave bez prijave → 401 (ne preusmjeravanje)" "$(code "$A/prijave/1")" "401"
+header_hasnt "API ne dopušta čitanje s drugih domena (nema CORS zaglavlja)" 'Access-Control-Allow-Origin'
+
+LEA_API=$(api_prijava urednik.lea@zagreb-prijave.test); tLA=$(cat "$LEA_API.csrf")
+check "PATCH bez CSRF tokena (cookie je ipak poslan)" "$(code -b "$LEA_API" -H 'Content-Type: application/json' -X PATCH --data '{"naslov":"Hakirano"}' "$A/vijesti/2")" "403"
+check "DELETE s krivim CSRF tokenom" "$(code -b "$LEA_API" -H 'X-CSRF-Token: lazni' -X DELETE "$A/vijesti/2")" "403"
+check "CSRF preko HTML obrasca (enctype text/plain, JSON u tijelu)" "$(code -b "$LEA_API" -H 'Content-Type: text/plain' --data '{"naslov":"x","sazetak":"Lazna vijest s druge stranice.","sadrzaj":"x","kategorija_id":1}' "$A/vijesti")" "403"
+check "  → i s ispravnim tokenom: tijelo mora biti application/json" "$(code -b "$LEA_API" -H 'Content-Type: text/plain' -H "X-CSRF-Token: $tLA" --data '{"naslov":"x"}' "$A/vijesti")" "400"
+check "IDOR: Lea mijenja Tinovu vijest 4" "$(code -b "$LEA_API" -H 'Content-Type: application/json' -H "X-CSRF-Token: $tLA" -X PATCH --data '{"naslov":"Preuzeto"}' "$A/vijesti/4")" "403"
+check "mass assignment: autor_id u POST-u" "$(code -b "$LEA_API" -H 'Content-Type: application/json' -H "X-CSRF-Token: $tLA" --data '{"naslov":"Test vijest","sazetak":"Dovoljno dug sazetak.","sadrzaj":"<p>x</p>","kategorija_id":1,"autor_id":1}' "$A/vijesti")" "400"
+check "pohranjeni XSS preko API-ja" "$(code -b "$LEA_API" -H 'Content-Type: application/json' -H "X-CSRF-Token: $tLA" --data '{"naslov":"XSS kroz API","sazetak":"Pokusaj XSS-a kroz API.","sadrzaj":"<p onclick=\"x()\">a</p><img src=x onerror=alert(1)><a href=\"javascript:alert(1)\">b</a>","kategorija_id":1,"status":"objavljeno"}' "$A/vijesti")" "201"
+hasnt "  → onclick, onerror, javascript: uklonjeni" 'onclick\|onerror\|javascript:'
+DUBOKO=$(printf '%.0s[' {1..40}; printf '%.0s]' {1..40})
+check "JSON s 40 razina ugniježđenja" "$(code -b "$LEA_API" -H 'Content-Type: application/json' -H "X-CSRF-Token: $tLA" --data "{\"naslov\":$DUBOKO}" "$A/vijesti")" "400"
+check "JSON niz umjesto objekta" "$(code -b "$LEA_API" -H 'Content-Type: application/json' -H "X-CSRF-Token: $tLA" --data '[1,2,3]' "$A/vijesti")" "400"
+check "nepodržana metoda PUT" "$(code -X PUT "$A/prijave/1")" "405"
+code "$A/vijesti/999999" >/dev/null
+hasnt "pogreška API-ja bez putanja i SQL-a" 'xampp\|SQLSTATE'
+IVAN_API=$(api_prijava radnik.ivan@zagreb-prijave.test); tIA=$(cat "$IVAN_API.csrf")
+check "radnik preko API-ja sam zatvara prijavu" "$(code -b "$IVAN_API" -H 'Content-Type: application/json' -H "X-CSRF-Token: $tIA" -X PATCH --data '{"status":"ZAVRSENO"}' "$A/prijave/4")" "403"
+check "radnik preko API-ja mijenja tuđi zadatak" "$(code -b "$IVAN_API" -H 'Content-Type: application/json' -H "X-CSRF-Token: $tIA" -X PATCH --data '{"status":"U_RADU"}' "$A/prijave/5")" "403"
+check "radnik preko API-ja dodjeljuje zadatak sebi" "$(code -b "$IVAN_API" -H 'Content-Type: application/json' -H "X-CSRF-Token: $tIA" -X PATCH --data '{"radnik_id":4}' "$A/prijave/2")" "403"
+
+# ---------------------------------------------------------------------
+naslov "13. Pogađanje lozinke – brute force (A07)"
 # Na kraju, jer blokada po IP-u utječe na sve daljnje prijave s ovog računala.
 # ---------------------------------------------------------------------
 echo "DELETE FROM pokusaji_prijave" | SQL

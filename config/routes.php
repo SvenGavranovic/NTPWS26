@@ -3,16 +3,17 @@
 declare(strict_types=1);
 
 /*
- * Popis svih ruta aplikacije na jednom mjestu.
- * Treći argument određuje tko smije pristupiti (provjerava Router).
- *
- * Napomena: korisnički račun je pod /racun/..., jer bi "prijava" (login)
- * inače bila zamijenjena s "prijave" (prijave komunalnih problema).
+ * Rute aplikacije. Treći argument određuje tko smije pristupiti.
  *
  * @var \App\Core\Router $router
  */
 
 use App\Controllers\AdminController;
+use App\Controllers\Api\KategorijeApiController;
+use App\Controllers\Api\PrijaveApiController;
+use App\Controllers\Api\RadoviApiController;
+use App\Controllers\Api\SesijaApiController;
+use App\Controllers\Api\VijestiApiController;
 use App\Controllers\AdminPrijavaController;
 use App\Controllers\AuthController;
 use App\Controllers\CategoryController;
@@ -44,20 +45,19 @@ $router->get('/racun/profil',   [ProfileController::class, 'show'],           ['
 $router->post('/racun/profil',  [ProfileController::class, 'update'],         ['auth' => true]);
 $router->post('/racun/lozinka', [ProfileController::class, 'changePassword'], ['auth' => true]);
 
-// Prijave problema (svaki prijavljeni korisnik; tko smije vidjeti koju
-// prijavu provjerava PrijavaService::canView)
+// Prijave problema
 $router->get('/prijave/nova',                  [PrijavaController::class, 'create'], ['auth' => true]);
 $router->post('/prijave',                      [PrijavaController::class, 'store'],  ['auth' => true]);
 $router->get('/prijave/moje',                  [PrijavaController::class, 'index'],  ['auth' => true]);
 $router->get('/prijave/{id}',                  [PrijavaController::class, 'show'],   ['auth' => true]);
 $router->get('/prijave/{id}/slike/{slikaId}',  [PrijavaController::class, 'image'],  ['auth' => true]);
 
-// Radnik: kanban i radnje nad VLASTITIM zadacima ({id} = id prijave)
+// Radnik ({id} = id prijave)
 $router->get('/radnik/zadaci',               [ZadatakController::class, 'index'],  ['uloge' => ['radnik']]);
 $router->post('/radnik/zadaci/{id}/zapocni', [ZadatakController::class, 'start'],  ['uloge' => ['radnik']]);
 $router->post('/radnik/zadaci/{id}/zavrsi',  [ZadatakController::class, 'submit'], ['uloge' => ['radnik']]);
 
-// CMS: vijesti (urednik samo svoje – provjera u NewsAdminController, admin sve)
+// CMS: vijesti
 $router->get('/admin/vijesti',              [NewsAdminController::class, 'index'],   $urednistvo);
 $router->get('/admin/vijesti/nova',         [NewsAdminController::class, 'create'],  $urednistvo);
 $router->post('/admin/vijesti',             [NewsAdminController::class, 'store'],   $urednistvo);
@@ -81,3 +81,24 @@ $router->post('/admin/kategorije/{id}/obrisi', [CategoryController::class, 'dest
 
 $router->get('/admin/korisnici',       [UserAdminController::class, 'index'],  $samoAdmin);
 $router->post('/admin/korisnici/{id}', [UserAdminController::class, 'update'], $samoAdmin);
+
+// REST API (JSON)
+$api = '/api/v1';
+$router->get("{$api}/sesija",     [SesijaApiController::class, 'show']);
+$router->post("{$api}/sesija",    [SesijaApiController::class, 'store']);
+$router->delete("{$api}/sesija",  [SesijaApiController::class, 'destroy'], ['auth' => true]);
+
+$router->get("{$api}/vijesti",         [VijestiApiController::class, 'index']);
+$router->post("{$api}/vijesti",        [VijestiApiController::class, 'store'],   $urednistvo);
+$router->get("{$api}/vijesti/{id}",    [VijestiApiController::class, 'show']);
+$router->patch("{$api}/vijesti/{id}",  [VijestiApiController::class, 'update'],  $urednistvo);
+$router->delete("{$api}/vijesti/{id}", [VijestiApiController::class, 'destroy'], $urednistvo);
+
+$router->get("{$api}/kategorije", [KategorijeApiController::class, 'index']);
+
+$router->get("{$api}/prijave",        [PrijaveApiController::class, 'index']);
+$router->post("{$api}/prijave",       [PrijaveApiController::class, 'store'],  ['auth' => true]);
+$router->get("{$api}/prijave/{id}",   [PrijaveApiController::class, 'show'],   ['auth' => true]);
+$router->patch("{$api}/prijave/{id}", [PrijaveApiController::class, 'update'], ['auth' => true]);
+
+$router->get("{$api}/radovi", [RadoviApiController::class, 'index']);

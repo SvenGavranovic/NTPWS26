@@ -7,13 +7,7 @@ namespace App\Models;
 use App\Core\Database;
 use PDO;
 
-/**
- * Vijesti za CMS (administracija): vidi i NACRTE.
- *
- * Namjerno je odvojeno od modela Vijest, koji služi javnom dijelu i uvijek
- * filtrira samo objavljene vijesti. Ovaj model koristi samo NewsAdminController,
- * a tko smije vidjeti/mijenjati koju vijest odlučuje NewsAdminService.
- */
+/** Vijesti za CMS, uključujući nacrte. */
 final class VijestCms
 {
     private PDO $db;
@@ -23,9 +17,7 @@ final class VijestCms
         $this->db = Database::connection();
     }
 
-    /**
-     * Popis za CMS. $autorId = null → sve vijesti (admin), inače samo vijesti tog autora (urednik).
-     */
+    /** $autorId = null → sve vijesti */
     public function find(?int $autorId, ?string $status, string $q, int $limit, int $offset): array
     {
         [$where, $params] = $this->where($autorId, $status, $q);
@@ -59,7 +51,6 @@ final class VijestCms
         return (int) $stmt->fetchColumn();
     }
 
-    /** Bilo koja vijest (i nacrt). Provjeru ovlasti radi servis. */
     public function findById(int $id): ?array
     {
         $stmt = $this->db->prepare(
@@ -72,7 +63,6 @@ final class VijestCms
 
     public function create(array $d, int $autorId): int
     {
-        // datum_objave se postavlja samo ako se vijest odmah objavljuje
         $stmt = $this->db->prepare(
             "INSERT INTO vijesti (kategorija_id, autor_id, naslov, sazetak, sadrzaj, slika, status, datum_objave)
              VALUES (?, ?, ?, ?, ?, ?, ?, IF(? = 'objavljeno', NOW(), NULL))"
@@ -84,11 +74,7 @@ final class VijestCms
         return (int) $this->db->lastInsertId();
     }
 
-    /**
-     * Autor se pri uređivanju NE mijenja (ni kad vijest uređuje administrator).
-     * datum_objave se postavlja pri PRVOJ objavi i poslije se ne mijenja; kod
-     * povlačenja (natrag u nacrt) ostaje zapisan da se vidi da je bila objavljena.
-     */
+    /** Autor se ne mijenja; datum_objave se postavlja pri prvoj objavi. */
     public function update(int $id, array $d): void
     {
         $stmt = $this->db->prepare(
