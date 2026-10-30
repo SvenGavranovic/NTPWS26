@@ -17,6 +17,8 @@ $flash = Session::pullFlash();
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title><?= e($title ?? 'Zagreb Prijave') ?> · Zagreb Prijave</title>
+    <meta name="description" content="Prijava komunalnih problema, radovi na infrastrukturi i stanje u prometu u Zagrebu.">
+    <link rel="icon" type="image/svg+xml" href="<?= e(asset('img/grb-zagreb.svg')) ?>">
     <!-- integrity: preglednik odbija datoteku ako je na CDN-u izmijenjena -->
     <link rel="stylesheet"
           href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
@@ -26,9 +28,14 @@ $flash = Session::pullFlash();
 </head>
 <body class="d-flex flex-column min-vh-100">
 
-<nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+<a class="visually-hidden-focusable" href="#sadrzaj">Preskoči na sadržaj</a>
+
+<nav class="navbar navbar-expand-lg navbar-dark bg-zagreb shadow-sm">
     <div class="container">
-        <a class="navbar-brand fw-semibold" href="<?= e(url('/')) ?>">Zagreb Prijave</a>
+        <a class="navbar-brand d-flex align-items-center gap-2 fw-semibold" href="<?= e(url('/')) ?>">
+            <img src="<?= e(asset('img/grb-zagreb.svg')) ?>" alt="" class="brand-grb">
+            Zagreb Prijave
+        </a>
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#glavniIzbornik"
                 aria-controls="glavniIzbornik" aria-expanded="false" aria-label="Izbornik">
             <span class="navbar-toggler-icon"></span>
@@ -36,20 +43,22 @@ $flash = Session::pullFlash();
 
         <div class="collapse navbar-collapse" id="glavniIzbornik">
             <ul class="navbar-nav me-auto">
-                <li class="nav-item"><a class="nav-link" href="<?= e(url('/')) ?>">Početna</a></li>
+                <?= nav_link('/', 'Početna') ?>
+                <?= nav_link('/vijesti', 'Vijesti') ?>
+                <?= nav_link('/o-projektu', 'O projektu') ?>
                 <?php if (Auth::hasRole('admin')): ?>
                     <!-- Poveznica je skrivena ostalima, ali PRAVU zaštitu radi router (403) -->
-                    <li class="nav-item"><a class="nav-link" href="<?= e(url('/admin')) ?>">Administracija</a></li>
+                    <?= nav_link('/admin', 'Administracija') ?>
                 <?php endif; ?>
             </ul>
 
-            <ul class="navbar-nav">
+            <ul class="navbar-nav align-items-lg-center gap-lg-2">
                 <?php if ($korisnik): ?>
                     <li class="nav-item">
-                        <span class="navbar-text me-3">
+                        <a class="nav-link" href="<?= e(url('/racun/profil')) ?>">
                             <?= e($korisnik['ime'] . ' ' . $korisnik['prezime']) ?>
-                            <span class="badge text-bg-light"><?= e($korisnik['uloga_naziv']) ?></span>
-                        </span>
+                            <span class="badge text-bg-light ms-1"><?= e($korisnik['uloga_naziv']) ?></span>
+                        </a>
                     </li>
                     <li class="nav-item">
                         <!-- Odjava je POST s CSRF tokenom: tuđa stranica ne može odjaviti korisnika -->
@@ -59,28 +68,57 @@ $flash = Session::pullFlash();
                         </form>
                     </li>
                 <?php else: ?>
-                    <li class="nav-item"><a class="nav-link" href="<?= e(url('/racun/prijava')) ?>">Prijava</a></li>
-                    <li class="nav-item"><a class="nav-link" href="<?= e(url('/racun/registracija')) ?>">Registracija</a></li>
+                    <?= nav_link('/racun/prijava', 'Prijava') ?>
+                    <li class="nav-item">
+                        <a class="btn btn-light btn-sm text-zagreb fw-semibold" href="<?= e(url('/racun/registracija')) ?>">Registracija</a>
+                    </li>
                 <?php endif; ?>
             </ul>
         </div>
     </div>
 </nav>
 
-<main class="container py-4 flex-grow-1">
-    <?php foreach ($flash as $poruka): ?>
-        <div class="alert alert-<?= e($poruka['type']) ?> alert-dismissible fade show" role="alert">
-            <?= e($poruka['message']) ?>
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Zatvori"></button>
+<main id="sadrzaj" class="flex-grow-1">
+    <?php if ($flash): ?>
+        <div class="container pt-4">
+            <?php foreach ($flash as $poruka): ?>
+                <div class="alert alert-<?= e($poruka['type']) ?> alert-dismissible fade show" role="alert">
+                    <?= e($poruka['message']) ?>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Zatvori"></button>
+                </div>
+            <?php endforeach; ?>
         </div>
-    <?php endforeach; ?>
+    <?php endif; ?>
 
-    <?= $content /* već escapean u pogledu */ ?>
+    <?php if (!empty($punaSirina)): ?>
+        <?= $content /* već escapean u pogledu */ ?>
+    <?php else: ?>
+        <div class="container py-4"><?= $content ?></div>
+    <?php endif; ?>
 </main>
 
-<footer class="bg-light border-top py-3 mt-auto">
-    <div class="container small text-muted">
-        Zagreb Prijave · studentski projekt · kolegij Napredno web projektiranje web servisa
+<footer class="footer border-top mt-auto">
+    <div class="container py-4">
+        <div class="row g-3 align-items-center">
+            <div class="col-md-7 d-flex gap-3 align-items-start">
+                <img src="<?= e(asset('img/grb-zagreb.svg')) ?>" alt="" class="footer-grb">
+                <div class="small text-body-secondary">
+                    <strong class="text-body">Zagreb Prijave</strong> · studentski projekt, kolegij
+                    Napredno web projektiranje web servisa.<br>
+                    <strong>Neslužbena aplikacija</strong> – nije povezana s Gradom Zagrebom niti s gradskim službama.
+                    Prijave poslane ovdje ne stižu nadležnim službama.
+                </div>
+            </div>
+            <div class="col-md-5 small text-md-end">
+                <a href="<?= e(url('/vijesti')) ?>" class="link-secondary me-3">Vijesti</a>
+                <a href="<?= e(url('/o-projektu')) ?>" class="link-secondary me-3">O projektu</a>
+                <br class="d-none d-md-inline">
+                <span class="text-body-secondary">
+                    Grb: <a class="link-secondary" href="https://commons.wikimedia.org/wiki/File:Coat_of_arms_of_Zagreb.svg"
+                            rel="noopener" target="_blank">Wikimedia Commons</a>, javno vlasništvo
+                </span>
+            </div>
+        </div>
     </div>
 </footer>
 

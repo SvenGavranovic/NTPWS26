@@ -286,3 +286,122 @@ storage/logs/app.log      zapisnik pogrešaka (nije u gitu)
 ### Korištenje AI alata
 
 U fazi 2 Claude Code je korišten za izradu strukture koda, routera, autentifikacije i automatskih cURL testova. Student je pregledao kod i testirao prijavu i registraciju u pregledniku.
+
+---
+
+## Faza 3 – Javni dio: početna, vijesti, filtriranje, pretraga, straničenje, profil
+
+### Što je napravljeno
+
+| Ruta | Što prikazuje | Tko |
+|---|---|---|
+| `GET /` | Početna: uvod, statistika prijava, „Kako funkcionira”, 3 najnovije vijesti | svi |
+| `GET /vijesti?q=&kategorija=&stranica=` | Popis objavljenih vijesti s pretragom, filtrom i straničenjem | svi |
+| `GET /vijesti/{id}` | Detalj objavljene vijesti | svi |
+| `GET /o-projektu` | Opis projekta, uloge, tehnologije, napomena o AI alatima | svi |
+| `GET /racun/profil` | Podaci o korisniku, obrasci za ime i lozinku | prijavljeni |
+| `POST /racun/profil` | Promjena imena i prezimena | prijavljeni |
+| `POST /racun/lozinka` | Promjena lozinke | prijavljeni |
+
+Novi dijelovi koda:
+- **modeli:** `Vijest`, `Kategorija`, `Prijava` (za sada samo statistika);
+- **kontroleri:** `NewsController`, `ProfileController`;
+- **servis:** `ProfileService`;
+- **jezgra:** `Paginator`;
+- **pomoćne funkcije:** `get()`, `get_int()`, `datum()`, `nav_link()`.
+
+### Najvažnije pravilo: neobjavljene vijesti nikad ne smiju procuriti
+
+Svi javni upiti u modelu `Vijest` prolaze kroz privatnu metodu `publicWhere()`, koja **uvijek** dodaje `v.status = 'objavljeno'`. Kontroler zato ne može „zaboraviti” uvjet, jer ga ne piše sam. Tako je pokriveno:
+- popis i brojač (nacrt se ne broji ni u broju vijesti po kategoriji);
+- pretraga (riječ iz nacrta ne vraća nacrt);
+- izravan URL `/vijesti/7` (nacrt) i `/vijesti/9` (povučena vijest) vraća **404, isto kao nepostojeća vijest**. Poruka „nemate pravo” bi otkrila da vijest s tim ID-jem postoji.
+
+### Tok podataka: `GET /vijesti?q=promet&kategorija=2&stranica=1`
+
+1. `index.php` → `Router` → `NewsController::index` (javna ruta, GET, bez CSRF-a).
+2. Kontroler čita parametre preko `get()` i `get_int()`:
+   - `q` je skraćen na 100 znakova;
+   - `kategorija=abc` postaje `null` (filtar se ignorira);
+   - niz (`q[]=x`) postaje prazan string.
+3. `Vijest::countPublished()`: `SELECT COUNT(*) ... WHERE status='objavljeno' AND kategorija_id = :kategorija AND (naslov LIKE :q1 OR ...)`.
+4. `Paginator` iz ukupnog broja izračunava broj stranica, ispravlja nemoguću stranicu (`stranica=999` → zadnja) i daje `OFFSET`.
+5. `Vijest::findPublished()` s `LIMIT :limit OFFSET :offset`, gdje su oba parametra vezana kao `PDO::PARAM_INT`.
+6. Pogled `vijesti/index.php` ispisuje kartice (sve kroz `e()`), filtre i straničenje. Poveznice straničenja čuvaju aktivne filtre.
+
+### Odluke i obrazloženja
+
+- **Pretraga i filtri su GET, a ne POST.** Rezultat ima vlastiti URL, koji se može podijeliti, spremiti ili otvoriti gumbom Natrag. GET ništa ne mijenja, pa ne treba CSRF token.
+- **Escaping zamjenskih znakova u LIKE.**
+  - `%` i `_` u LIKE znače „bilo što” i „bilo koji znak”. Bez escapinga bi pretraga `%` vratila sve vijesti.
+  - `addcslashes($q, '%_\\')` ih pretvara u obične znakove. Testirano: `q=%` vraća 0 rezultata.
+- **`:q1`, `:q2`, `:q3` umjesto jednog `:q`.** S pravim prepared statementima (`EMULATE_PREPARES = false`) isti imenovani parametar ne smije se pojaviti dvaput u istom upitu.
+- **WHERE se gradi iz dijelova, ali sigurno.** U SQL se spajaju samo fiksni dijelovi teksta koje je napisao programer. Korisnikove vrijednosti idu isključivo kroz `bindValue`/`execute`.
+- **Pretraga ne razlikuje velika i mala slova** zahvaljujući collationu `utf8mb4_croatian_ci` iz faze 1: `PROMETA` nalazi „prometa”.
+- **4 vijesti po stranici.** Broj je mali namjerno, da se straničenje vidi već sa 6 objavljenih vijesti iz seeda. Mijenja se jednom konstantom (`NewsController::PO_STRANICI`).
+- **Nemoguća stranica se ispravlja, a ne javlja grešku.** `stranica=999` prikazuje zadnju stranicu, a `stranica=abc` prvu.
+- **Prazni rezultati** imaju vlastitu poruku: drukčiju za pretragu bez rezultata, a drukčiju za praznu kategoriju. Uz poruku je i gumb za povratak (zahtjev iz uputa).
+- **Sadržaj vijesti se ispisuje bez `e()`**, jer je to HTML iz uređivača. Siguran je zato što ga HTMLPurifier čisti **pri spremanju** u CMS-u (faza 4). U bazu tako nikad ne ulazi `<script>` ni `onerror=`. Sve ostalo (naslov, sažetak, autor, kategorija) ide kroz `e()`.
+- **Statistika na početnoj** prikazuje samo zbirne brojeve (`COUNT`, `SUM`), bez podataka o pojedinoj prijavi ili korisniku.
+
+### Profil i promjena lozinke
+
+- **ID korisnika uzima se iz sesije, nikad iz obrasca.** Testirano: podmetnuti `id=1` i `email=...` u POST-u se ignoriraju, a mijenja se samo vlastito ime.
+- **E-mail i uloga se ne mogu mijenjati na profilu.** Promjena e-maila zahtijevala bi potvrdu nove adrese, a ulogu mijenja administrator (faza 4).
+- **Za promjenu lozinke traži se trenutna lozinka.** Netko tko sjedne za tuđe otključano računalo ne može tako preuzeti račun.
+- **Nova lozinka mora biti različita od stare** i mora zadovoljiti ista pravila kao kod registracije (`AuthService::validatePassword`, jedno mjesto za pravila).
+- **Nakon promjene lozinke poziva se `session_regenerate_id(true)`.**
+- **Poznato ograničenje:** ostale otvorene sesije istog korisnika (npr. na drugom uređaju) ostaju aktivne do odjave. Rješenje bi bio stupac `lozinka_promijenjena_u` i usporedba s vremenom prijave spremljenim u sesiji. To je moguća nadogradnja.
+- **Provjera imena je izdvojena u `AuthService::validateName()`** i koristi se i pri registraciji i na profilu, bez ponavljanja koda.
+
+### Izgled, grb i favicon
+
+- **Grb Grada Zagreba** (SVG) preuzet je s Wikimedia Commons:
+  - licenca je **javno vlasništvo (Public domain)**, uz oznaku **„insignia”**: službeni simboli se ne smiju koristiti tako da sugeriraju službeni status;
+  - prije uključivanja datoteka je pregledana: nema `<script>` ni vanjskih poveznica;
+  - spremljena je lokalno u `public/assets/img/grb-zagreb.svg`, umjesto da se učitava s tuđeg poslužitelja;
+  - dodan joj je `viewBox` da se ispravno smanjuje.
+- **Gdje se grb koristi:** u zaglavlju lijevo od naziva, kao **favicon** (`<link rel="icon" type="image/svg+xml">`), u heroju početne stranice i u podnožju.
+- **Napomena o neslužbenom statusu** stoji u podnožju svake stranice i na stranici „O projektu”. Uz službeni grb aplikacija ne smije izgledati kao službena aplikacija Grada.
+- **Boje:** glavna boja je plava iz grba (`#0277ba`). Bootstrap gumbi, straničenje i aktivna kategorija prilagođeni su preko CSS varijabli u `app.css`.
+- **Pristupačnost:**
+  - poveznica „Preskoči na sadržaj”;
+  - `aria-current` na aktivnoj stavci izbornika i stranici;
+  - `alt=""` na ukrasnim slikama grba (čitač zaslona ih preskače), a opisni `alt` u heroju;
+  - `prefers-reduced-motion` isključuje animaciju kartica.
+
+### Provedeni testovi (cURL, automatski) – svi prošli
+
+| Scenarij | Očekivano | Dobiveno |
+|---|---|---|
+| Početna: favicon, grb, napomena, statistika 10/5/2, 3 najnovije vijesti bez nacrta | sve prisutno | ✔ |
+| `/assets/img/grb-zagreb.svg` | 200, `image/svg+xml` | ✔ |
+| `/vijesti` | 6 vijesti, 4 na str. 1, 2 na str. 2, bez nacrta i povučene | ✔ |
+| `stranica=999` / `stranica=abc` | zadnja / prva stranica | ✔ |
+| `kategorija=2` (Promet) | 1 vijest (nacrt 7 izostavljen) | ✔ |
+| `kategorija=6` (Arhiva) | poruka o praznoj kategoriji | ✔ |
+| `q=prometa`, `q=PROMETA` | 1 (bez nacrta) | ✔ |
+| `q=NACRT`, `q=%`, `q=_` | 0 rezultata | ✔ |
+| `q=xyznema` | poruka „Nema pronađenih vijesti” | ✔ |
+| `q=<script>…` | escapeano | ✔ |
+| `q[]=x` | 200, bez greške | ✔ |
+| `/vijesti/7` (nacrt), `/vijesti/9` (povučena), `/vijesti/999` | 404 | ✔ |
+| Profil bez prijave | preusmjeravanje na prijavu | ✔ |
+| Profil: POST bez CSRF / neispravno ime | 403 / 422 | ✔ |
+| Profil s podmetnutim `id=1` i `email` | mijenja se samo vlastito ime, e-mail ne | ✔ |
+| Lozinka: kriva trenutna / ista kao stara / potvrda ne odgovara | 422 | ✔ |
+| Lozinka: ispravna promjena | stara lozinka više ne radi, nova radi | ✔ |
+
+### Moguća pitanja na obrani
+
+- *Kako ste osigurali da nacrt ne procuri?* Uvjet `status='objavljeno'` je u jednoj privatnoj metodi modela kroz koju prolaze svi javni upiti. Izravan URL nacrta vraća 404, isto kao nepostojeći zapis.
+- *Zašto 404, a ne 403, za nacrt?* 403 bi potvrdio da vijest postoji. Za posjetitelja nacrt „ne postoji”.
+- *Što je OFFSET i kako se računa?* `(stranica - 1) × po_stranici`. Za stranicu 2 uz 4 po stranici to je 4, pa se preskaču prve 4 vijesti.
+- *Zašto pretraga escapea `%` i `_`?* To su zamjenski znakovi u LIKE. Bez escapinga korisnik bi mogao izvoditi „wildcard” upite koje nismo predvidjeli.
+- *Zašto se sadržaj vijesti ispisuje bez escapinga?* Jer je to formatirani HTML. Sigurnost osigurava HTMLPurifier pri spremanju, pa u bazu ulaze samo dopuštene oznake.
+- *Može li korisnik promijeniti tuđi profil?* Ne. ID se čita iz sesije, a ne iz zahtjeva. To je testirano podmetanjem `id=1`.
+- *Smijete li koristiti grb Zagreba?* Grb je u javnom vlasništvu, ali je službeni simbol. Zato aplikacija jasno navodi da nije službena i ne predstavlja se kao Grad.
+
+### Korištenje AI alata
+
+U fazi 3 Claude Code je korišten za izradu javnog dijela, profila, stilova i automatskih testova te za provjeru licence grba. Student je pregledao kod i izgled stranica u pregledniku.

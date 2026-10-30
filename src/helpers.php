@@ -71,6 +71,44 @@ function post(string $key): string
     return is_string($value) ? $value : '';
 }
 
+/** Isto kao post(), ali za parametre iz URL-a (?q=...&kategorija=...). */
+function get(string $key): string
+{
+    $value = $_GET[$key] ?? '';
+    return is_string($value) ? trim($value) : '';
+}
+
+/** Pozitivan cijeli broj iz URL-a ili null (npr. ?kategorija=abc → null). */
+function get_int(string $key): ?int
+{
+    $value = filter_var(get($key), FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+    return $value === false ? null : $value;
+}
+
+/** Datum iz baze u hrvatskom obliku: "2026-10-05 08:00:00" → "5. 10. 2026." */
+function datum(?string $value, bool $sVremenom = false): string
+{
+    if ($value === null || $value === '') {
+        return '';
+    }
+    return (new DateTimeImmutable($value))->format($sVremenom ? 'j. n. Y. \u H:i' : 'j. n. Y.');
+}
+
+/** Stavka glavnog izbornika; označena je kao aktivna kad smo na toj stranici (ili podstranici). */
+function nav_link(string $path, string $label): string
+{
+    $current = request_path();
+    $active = $current === $path || ($path !== '/' && str_starts_with($current, $path . '/'));
+
+    return sprintf(
+        '<li class="nav-item"><a class="nav-link%s" href="%s"%s>%s</a></li>',
+        $active ? ' active' : '',
+        e(url($path)),
+        $active ? ' aria-current="page"' : '',
+        e($label)
+    );
+}
+
 /** Skriveno CSRF polje za svaki obrazac koji šalje POST. */
 function csrf_field(): string
 {

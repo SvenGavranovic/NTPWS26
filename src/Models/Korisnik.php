@@ -44,6 +44,20 @@ final class Korisnik
         return $stmt->fetch() ?: null;
     }
 
+    public function findPasswordHash(int $id): ?string
+    {
+        $stmt = $this->db->prepare('SELECT lozinka_hash FROM korisnici WHERE id = ?');
+        $stmt->execute([$id]);
+        $hash = $stmt->fetchColumn();
+        return $hash === false ? null : $hash;
+    }
+
+    public function updateName(int $id, string $ime, string $prezime): void
+    {
+        $stmt = $this->db->prepare('UPDATE korisnici SET ime = ?, prezime = ? WHERE id = ?');
+        $stmt->execute([$ime, $prezime, $id]);
+    }
+
     public function emailExists(string $email): bool
     {
         $stmt = $this->db->prepare('SELECT 1 FROM korisnici WHERE email = ?');

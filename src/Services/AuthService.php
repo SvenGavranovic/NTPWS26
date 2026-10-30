@@ -45,12 +45,8 @@ final class AuthService
         $errors = [];
 
         foreach (['ime' => $ime, 'prezime' => $prezime] as $polje => $vrijednost) {
-            if ($vrijednost === '') {
-                $errors[$polje] = 'Polje je obavezno.';
-            } elseif (mb_strlen($vrijednost) < 2 || mb_strlen($vrijednost) > 50) {
-                $errors[$polje] = 'Unesite između 2 i 50 znakova.';
-            } elseif (!preg_match("/^[\p{L}][\p{L} '\-]*$/u", $vrijednost)) {
-                $errors[$polje] = 'Dopuštena su samo slova, razmak, crtica i apostrof.';
+            if ($greska = self::validateName($vrijednost)) {
+                $errors[$polje] = $greska;
             }
         }
 
@@ -114,6 +110,21 @@ final class AuthService
         $this->korisnici->updateLastLogin((int) $korisnik['id']);
 
         return ['ok' => true, 'korisnik' => $korisnik];
+    }
+
+    /** Ime ili prezime: 2–50 znakova, slova (i č, ć, đ, š, ž), razmak, crtica, apostrof. */
+    public static function validateName(string $vrijednost): ?string
+    {
+        if ($vrijednost === '') {
+            return 'Polje je obavezno.';
+        }
+        if (mb_strlen($vrijednost) < 2 || mb_strlen($vrijednost) > 50) {
+            return 'Unesite između 2 i 50 znakova.';
+        }
+        if (!preg_match("/^[\p{L}][\p{L} '\-]*$/u", $vrijednost)) {
+            return 'Dopuštena su samo slova, razmak, crtica i apostrof.';
+        }
+        return null;
     }
 
     /** Vraća poruku pogreške ili null ako je lozinka prihvatljiva. */

@@ -1,5 +1,92 @@
-/* Vlastiti stilovi uz Bootstrap 5 */
+/*
+ * Vlastiti stilovi uz Bootstrap 5.
+ * Glavna boja je plava iz grba Grada Zagreba (#0277ba).
+ */
 
-.navbar .navbar-text .badge {
-    font-weight: 500;
+:root {
+    --zg-plava: #0277ba;
+    --zg-plava-tamna: #015a8f;
+    --zg-zuta: #f5df03;
+}
+
+/* Bootstrap "primary" gumbi u boji grba */
+.btn-primary {
+    --bs-btn-bg: var(--zg-plava);
+    --bs-btn-border-color: var(--zg-plava);
+    --bs-btn-hover-bg: var(--zg-plava-tamna);
+    --bs-btn-hover-border-color: var(--zg-plava-tamna);
+    --bs-btn-active-bg: var(--zg-plava-tamna);
+    --bs-btn-active-border-color: var(--zg-plava-tamna);
+}
+.btn-outline-primary {
+    --bs-btn-color: var(--zg-plava);
+    --bs-btn-border-color: var(--zg-plava);
+    --bs-btn-hover-bg: var(--zg-plava);
+    --bs-btn-hover-border-color: var(--zg-plava);
+    --bs-btn-active-bg: var(--zg-plava-tamna);
+}
+a { color: var(--zg-plava); }
+a:hover { color: var(--zg-plava-tamna); }
+
+.bg-zagreb   { background-color: var(--zg-plava); }
+.text-zagreb { color: var(--zg-plava) !important; }
+
+/* --- Zaglavlje i podnožje --- */
+.brand-grb  { height: 32px; width: auto; }
+.footer     { background-color: #f6f8fa; }
+.footer-grb { height: 40px; width: auto; flex-shrink: 0; }
+
+/* --- Početna --- */
+.hero {
+    background: linear-gradient(135deg, var(--zg-plava) 0%, var(--zg-plava-tamna) 100%);
+    color: #fff;
+}
+.hero .lead   { color: rgba(255, 255, 255, .9); }
+.hero-grb     { max-height: 260px; width: auto; filter: drop-shadow(0 .5rem 1rem rgba(0, 0, 0, .25)); }
+
+.stat-broj {
+    font-size: 2.25rem;
+    font-weight: 700;
+    color: var(--zg-plava);
+    line-height: 1;
+}
+
+.korak-broj {
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    background-color: var(--zg-plava);
+    color: #fff;
+}
+
+/* --- Vijesti --- */
+.vijest-kartica {
+    border-top: 4px solid var(--zg-plava);
+    transition: box-shadow .15s ease-in-out, transform .15s ease-in-out;
+}
+.vijest-kartica:hover {
+    box-shadow: 0 .5rem 1rem rgba(0, 0, 0, .1);
+    transform: translateY(-2px);
+}
+.vijest-kartica .card-img-top { aspect-ratio: 16 / 9; object-fit: cover; }
+
+.vijest-sadrzaj { font-size: 1.075rem; line-height: 1.7; }
+.vijest-sadrzaj img { max-width: 100%; height: auto; }
+
+.list-group-item.active {
+    background-color: var(--zg-plava);
+    border-color: var(--zg-plava);
+}
+.pagination {
+    --bs-pagination-color: var(--zg-plava);
+    --bs-pagination-active-bg: var(--zg-plava);
+    --bs-pagination-active-border-color: var(--zg-plava);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .vijest-kartica, .vijest-kartica:hover { transition: none; transform: none; }
 }
