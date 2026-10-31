@@ -100,6 +100,17 @@ function nav_link(string $path, string $label): string
     );
 }
 
+/** IP klijenta; iza lokalnog tunela (cloudflared) iz zaglavlja CF-Connecting-IP, samo za zahtjeve s localhosta. */
+function client_ip(): string
+{
+    $ip = $_SERVER['REMOTE_ADDR'] ?? '';
+    $cf = $_SERVER['HTTP_CF_CONNECTING_IP'] ?? '';
+    if (in_array($ip, ['127.0.0.1', '::1'], true) && filter_var($cf, FILTER_VALIDATE_IP)) {
+        return $cf;
+    }
+    return $ip;
+}
+
 function wants_json(): bool
 {
     return str_contains($_SERVER['HTTP_ACCEPT'] ?? '', 'application/json');

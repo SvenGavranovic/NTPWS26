@@ -32,7 +32,7 @@ final class SesijaApiController
             return;
         }
 
-        $result = (new AuthService())->attemptLogin($body->email, $body->lozinka, $_SERVER['REMOTE_ADDR'] ?? '');
+        $result = (new AuthService())->attemptLogin($body->email, $body->lozinka, client_ip());
         if (!$result['ok']) {
             if (!empty($result['blokirano'])) {
                 header('Retry-After: ' . (AuthService::PROZOR_MINUTA * 60));

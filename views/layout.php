@@ -121,7 +121,7 @@ $flash = Session::pullFlash();
                 <img src="<?= e(asset('img/grb-zagreb.svg')) ?>" alt="" class="footer-grb">
                 <div class="small text-body-secondary">
                     <strong class="text-body">Zagreb Prijave</strong> · studentski projekt, kolegij
-                    Napredno web projektiranje web servisa.<br>
+                    Napredne tehnike projektiranja web servisa.<br>
                     <strong>Neslužbena aplikacija</strong> – nije povezana s Gradom Zagrebom niti s gradskim službama.
                     Prijave poslane ovdje ne stižu nadležnim službama.
                 </div>

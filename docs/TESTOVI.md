@@ -22,11 +22,35 @@ bash tests/sve.sh           # sve skripte redom, uz sažetak
 
 Svaka skripta na kraju ispisuje `Rezultat: N prošlo, M palo` i završava kodom 0 samo ako ništa nije palo.
 
-Svaka sljedeća faza (prijave, kanban, API, TomTom) dodaje nove slučajeve u `tests/sigurnost.sh`.
+API je moguće ručno testirati i alatima Postman, Bruno ili cURL (primjeri u [API.md](API.md)).
+
+## Obavezni scenariji iz uputa kolegija
+
+Stanje nakon faze 9 (31. 10. 2026.). Stupac „Gdje” navodi automatski test koji scenarij provjerava.
+
+| # | Scenarij | Očekivano | Dobiveno | Gdje |
+|---|---|---|---|---|
+| 1 | Registracija s ispravnim podacima | račun s ulogom `korisnik`, preusmjeravanje na prijavu | ✔ račun stvoren, uloga `korisnik` | `sigurnost.sh` (5), tablica faze 2 |
+| 2 | Registracija s neispravnim podacima | 422, poruka uz svako neispravno polje, ništa se ne sprema | ✔ 422 s porukama | tablica faze 2 |
+| 3 | Registracija već postojeće e-mail adrese | 422 „Račun s ovom e-mail adresom već postoji.” (i velikim slovima) | ✔ 422 | tablica faze 2 |
+| 4 | Prijava s ispravnom lozinkom | prijava, novi ID sesije, preusmjeravanje prema ulozi | ✔ 303, novi ID sesije | `sigurnost.sh` (4) |
+| 5 | Prijava s pogrešnom lozinkom | 401, ista poruka kao za nepostojeći e-mail; nakon 5 pokušaja 429 | ✔ 401 / 429 | `sigurnost.sh` (8, 15) |
+| 6 | Pristup administraciji bez prijave | preusmjeravanje na prijavu (web) / 401 (API) | ✔ 303 / 401 | `sigurnost.sh` (5), `api.sh` |
+| 7 | Urednik pokušava promijeniti tuđu vijest | 403, vijest nepromijenjena (web i API) | ✔ 403 | `sigurnost.sh` (5, 12), `api.sh` |
+| 8 | Korisnik pokušava promijeniti svoju ulogu | 403; podmetnuto `uloga=admin` pri registraciji se ignorira | ✔ 403, uloga ostaje `korisnik` | `sigurnost.sh` (5) |
+| 9 | Kreiranje, uređivanje, objava i brisanje vijesti | nacrt nije javan → objava (datum objave) → izmjena → povlačenje → brisanje (uz potvrdu) | ✔ | `cms.sh`, `api.sh` |
+| 10 | Javni zahtjev za neobjavljenu vijest | 404 na stranici i u API-ju; nacrt nije ni u popisu, pretrazi i filtru | ✔ 404 | `sigurnost.sh` (5), `api.sh`, tablica faze 3 |
+| 11 | Pretraga bez rezultata | poruka „Nema pronađenih vijesti” (web), `ukupno: 0` (API) | ✔ | tablica faze 3, `api.sh` |
+| 12 | API zahtjev s neispravnim podacima | 400 s porukom za svako polje (JSON Schema) | ✔ 400 | `api.sh` |
+| 13 | API zahtjev bez potrebnih ovlasti | 401 bez prijave, 403 s krivom ulogom ili bez CSRF tokena | ✔ 401 / 403 | `api.sh`, `sigurnost.sh` (12) |
+| 14 | Zahtjev za nepostojeći zapis | 404 (stranica i JSON) | ✔ 404 | `api.sh`, `cms.sh`, `prijave.sh` |
+| 15 | Vanjski API nedostupan | zadnji uspješno dohvaćeni podaci uz upozorenje; bez njih 503 + `Retry-After` | ✔ | `karta.sh` (simulacija kvara) |
+| 16 | Upload nedopuštene datoteke | 422 za PHP skriptu, lažni MIME, SVG, preveliku datoteku; ništa spremljeno | ✔ 422 | `sigurnost.sh` (6, 10, 11) |
+| 17 | Prikaz aplikacije na mobilnom uređaju | izbornik se sažima, sadržaj u jednom stupcu, karta i obrasci upotrebljivi | ✔ (ručna provjera, snimke u `docs/snimke/`) | ručno |
 
 ## Sigurnosni testovi – `tests/sigurnost.sh`
 
-Stanje nakon faze 8: **192 / 192 prošlo** (31. 10. 2026.)
+Stanje nakon faze 9: **196 / 196 prošlo** (31. 10. 2026.)
 
 | # | Napad | Primjer zahtjeva | Očekivano | Dobiveno |
 |---|---|---|---|---|
@@ -85,9 +109,10 @@ Stanje nakon faze 8: **192 / 192 prošlo** (31. 10. 2026.)
 | 13 | Curenje TomTom ključa | `/api/v1/promet` bez simulacije i sa svim simulacijama | ključ i adresa TomToma nikad u odgovoru | ✔ |
 | 13 | Zlonamjerni parametri proxyja | `?simulacija=../../.env`; `?bbox=0,0,90,90&url=http://127.0.0.1/` (SSRF) | ignorirano, bez sadržaja `.env` i podmetnutog URL-a | ✔ |
 | 13 | Cache prometa izvana | `/storage/cache/promet.json` | 404 | ✔ |
-| 14 | Brute force | 5 krivih lozinki pa ispravna | 429 + `Retry-After: 900` | ✔ |
-| 14 | Brute force na nepostojeći račun | 5 pokušaja | 429 (ne otkriva postoji li račun) | ✔ |
-| 14 | Password spraying | 20 pokušaja s iste IP adrese na razne račune | 429 i za ostale račune | ✔ |
+| 14 | Iza HTTPS tunela | zaglavlja `X-Forwarded-Proto: https` i `CF-Connecting-IP` (kao od cloudflareda) | kolačić sesije dobiva `Secure`; neuspjela prijava bilježi stvarnu IP klijenta; neispravna vrijednost zaglavlja se ignorira | ✔ |
+| 15 | Brute force | 5 krivih lozinki pa ispravna | 429 + `Retry-After: 900` | ✔ |
+| 15 | Brute force na nepostojeći račun | 5 pokušaja | 429 (ne otkriva postoji li račun) | ✔ |
+| 15 | Password spraying | 20 pokušaja s iste IP adrese na razne račune | 429 i za ostale račune | ✔ |
 | – | Stabilnost | svi gornji napadi | nijedna pogreška 500 u `storage/logs/app.log` | ✔ |
 
 ### Poznata ograničenja (svjesno prihvaćena)
@@ -133,7 +158,7 @@ Stanje nakon faze 5: **62 / 62 prošlo** (30. 10. 2026.)
 
 ## Funkcionalni testovi toka rada – `tests/zadaci.sh`
 
-Stanje nakon faze 6: **85 / 85 prošlo** (30. 10. 2026.)
+Stanje nakon faze 9: **87 / 87 prošlo** (31. 10. 2026.)
 
 | Područje | Scenariji | Dobiveno |
 |---|---|---|
@@ -144,7 +169,7 @@ Stanje nakon faze 6: **85 / 85 prošlo** (30. 10. 2026.)
 | Hitnost | admin mijenja; nepostojeća vrijednost i završena prijava odbijeni; radnik i korisnik → 403 | ✔ |
 | Početak rada | obrazac (303) i kanban fetch (200 JSON); ponovni prijelaz i tuđi zadatak → 409; bez CSRF-a → 403 | ✔ |
 | Slanje na provjeru | bez slike i s prekratkom napomenom odbijeno (slika se ne sprema); ispravno: status, slika „poslije”, napomena (UTF-8), povijest; radnik ne može odobriti (403); građanin ne vidi neodobrenu sliku | ✔ |
-| Odobrenje i vraćanje | odobrenje iz „U radu” odbijeno; odobrenje → ZAVRŠENO, građanin vidi sliku; vraćanje bez razloga odbijeno; s razlogom → radnik ga vidi, građanin ne; ciklus dorade do ZAVRŠENO; građanin vidi samo zadnju sliku „poslije” | ✔ |
+| Odobrenje i vraćanje | odobrenje iz „U radu” odbijeno; odobrenje → ZAVRŠENO, građanin vidi sliku; vraćanje bez razloga odbijeno; s razlogom → radnik ga vidi, građanin ne; ciklus dorade do ZAVRŠENO; građanin vidi samo zadnju sliku „poslije”, a odbijenu ne dobiva ni izravnim URL-om (404) | ✔ |
 | State machine | svaka radnja (započni, na provjeru, odobri, vrati, radnik → odobri) isprobana iz svih 6 statusa; prolazi samo iz dopuštenih | ✔ |
 
 ## Testovi REST API-ja – `tests/api.sh`

@@ -20,7 +20,7 @@ hasnt "  → popis bez punog sadržaja" '"sadrzaj"'
 has   "  → datum u ISO 8601" '"datum_objave":"2026-10-25T09:00:00+01:00"'
 code "$A/vijesti?po_stranici=2" >/dev/null
 eq    "po_stranici=2 → 2 vijesti, 3 stranice" "$(jv data)/$(jv meta.ukupno_stranica)" "2/3"
-has   "  → poveznica na sljedeću stranicu" '"sljedeca":"/zagreb-prijave/api/v1/vijesti?po_stranici=2&stranica=2"'
+has   "  → poveznica na sljedeću stranicu" "\"sljedeca\":\"$BP/api/v1/vijesti?po_stranici=2&stranica=2\""
 code "$A/vijesti?po_stranici=2&stranica=99" >/dev/null; eq "stranica=99 → zadnja" "$(jv meta.stranica)" "3"
 code "$A/vijesti?po_stranici=5000" >/dev/null;           eq "po_stranici=5000 → najviše 50" "$(jv meta.po_stranici)" "50"
 code "$A/vijesti?po_stranici=abc" >/dev/null;            eq "po_stranici=abc → zadano 10" "$(jv meta.po_stranici)" "10"
@@ -74,7 +74,7 @@ VALJAN="@$TW/valjan.json"
 NEVALJAN='{"naslov":"Ab","sazetak":42,"kategorija_id":"dva","status":"arhiva","autor_id":1}'
 check "valjan primjer" "$(code -b "$LEA" "${JSON[@]}" -H "X-CSRF-Token: $tL" --data-binary "$VALJAN" "$A/vijesti")" "201"
 NID=$(jv data.id)
-header_has "  → Location" "Location: /zagreb-prijave/api/v1/vijesti/$NID"
+header_has "  → Location" "Location: $BP/api/v1/vijesti/$NID"
 eq    "  → status nacrt (zadano), autor = Lea" "$(jv data.status)/$(jv data.autor_id)" "nacrt/2"
 eq    "  → sažetak s č (UTF-8)" "$(echo "SELECT sazetak FROM vijesti WHERE id=$NID" | SQL)" "Savska cesta bit će zatvorena u subotu."
 hasnt "  → <script> uklonjen (HTMLPurifier)" '<script>'
@@ -139,7 +139,7 @@ naslov "POST /prijave (multipart)"
 check "nova prijava sa slikom" "$(code -b "$ANA" -H 'Accept: application/json' -H "X-CSRF-Token: $tAna" -F cetvrt_id=4 -F vrsta_id=2 -F 'naslov=Ne radi lampa' -F 'opis=Lampa ne svijetli tjedan dana.' -F "slika=@$TW/foto.png" "$A/prijave")" "201"
 PID=$(jv data.id)
 eq    "  → status/hitnost postavlja sustav" "$(jv data.status)/$(jv data.hitnost)" "PRIJAVLJENO/srednja"
-header_has "  → Location" "Location: /zagreb-prijave/api/v1/prijave/$PID"
+header_has "  → Location" "Location: $BP/api/v1/prijave/$PID"
 check "bez slike" "$(code -b "$ANA" -H 'Accept: application/json' -H "X-CSRF-Token: $tAna" -F cetvrt_id=4 -F vrsta_id=2 -F 'naslov=Ne radi lampa' -F 'opis=Lampa ne svijetli tjedan dana.' "$A/prijave")" "400"
 has   "  → detalji: slika" '"slika":"Fotografija problema je obavezna."'
 check "kao JSON umjesto multiparta" "$(code -b "$ANA" "${JSON[@]}" -H "X-CSRF-Token: $tAna" --data '{"naslov":"x"}' "$A/prijave")" "400"
@@ -178,7 +178,7 @@ code -G --data-urlencode "vrsta=x' OR '1'='1" "$A/radovi" >/dev/null; eq "nepozn
 naslov "Frontend koristi API"
 code "$B/vijesti" >/dev/null
 has   "stranica vijesti učitava vijesti.js" 'js/vijesti.js'
-has   "  → s adresom API-ja" 'data-api="/zagreb-prijave/api/v1/vijesti"'
+has   "  → s adresom API-ja" "data-api=\"$BP/api/v1/vijesti\""
 if grep -q "api/v1/prijave" "$KORIJEN/public/assets/js/kanban.js"; then ok "kanban mijenja status preko PATCH /api/v1/prijave/{id}"; else fail "kanban ne koristi API"; fi
 code -b "$ANA" -H "X-CSRF-Token: $tAna" -X DELETE "$A/sesija" >/dev/null
 check "odjava preko API-ja" "$(code -b "$ANA" "$A/prijave/7")" "401"

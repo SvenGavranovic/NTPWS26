@@ -58,6 +58,9 @@ final class PrometService
         $this->timeout = max(1, min(15, (int) ($_ENV['TOMTOM_TIMEOUT'] ?? 5)));
         $this->ttl = max(60, min(120, (int) ($_ENV['TOMTOM_CACHE_TTL'] ?? 90)));
         $this->mapa = BASE_PATH . '/storage/cache';
+        if (!is_dir($this->mapa)) {
+            mkdir($this->mapa, 0775, true);
+        }
     }
 
     /**

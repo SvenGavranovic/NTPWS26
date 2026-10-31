@@ -3,7 +3,7 @@
 **Kolegij:** Napredno web projektiranje web servisa
 **Student:** [Ime i prezime], [JMBAG]
 **Oblik rada:** samostalno
-**Repozitorij:** [poveznica na GitHub repozitorij]
+**Repozitorij:** https://github.com/SvenGavranovic/NTPWS26
 
 ---
 

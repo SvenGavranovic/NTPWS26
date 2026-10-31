@@ -64,7 +64,12 @@ final class Session
 
     private static function isHttps(): bool
     {
+        // iza lokalnog tunela veza do preglednika je HTTPS iako Apache prima HTTP
+        $tunel = in_array($_SERVER['REMOTE_ADDR'] ?? '', ['127.0.0.1', '::1'], true)
+            && strtolower($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https';
+
         return (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
-            || (int) ($_SERVER['SERVER_PORT'] ?? 0) === 443;
+            || (int) ($_SERVER['SERVER_PORT'] ?? 0) === 443
+            || $tunel;
     }
 }

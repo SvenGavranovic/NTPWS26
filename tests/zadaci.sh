@@ -137,6 +137,9 @@ admin_post 6/odobri >/dev/null
 eq    "dorada: VRAĆENO → U RADU → ČEKA PROVJERU → ZAVRŠENO" "$(echo "SELECT GROUP_CONCAT(u_status ORDER BY id SEPARATOR ',') FROM povijest_statusa WHERE prijava_id=6 AND id > 30" | SQL)" "VRACENO,U_RADU,CEKA_PROVJERU,ZAVRSENO"
 code -b "$ADMIN" "$B/prijave/6" >/dev/null; eq "  → admin vidi obje slike 'poslije' (+ 'prije')" "$(grep -c '<figure' "$T/body")" "3"
 code -b "$LUKA" "$B/prijave/6" >/dev/null;  eq "  → građanin vidi samo zadnju (odobrenu)" "$(grep -c '<figure' "$T/body")" "2"
+STARA=$(echo "SELECT MIN(id) FROM prijava_slike WHERE prijava_id=6 AND tip='poslije'" | SQL)
+check "  → ni odbijenu sliku 'poslije' izravnim URL-om" "$(code -b "$LUKA" "$B/prijave/6/slike/$STARA")" "404"
+check "  → admin je može otvoriti" "$(code -b "$ADMIN" "$B/prijave/6/slike/$STARA")" "200"
 
 naslov "State machine: svaka radnja iz svakog statusa"
 # Prijava 10 dodijeljena Ivanu izravno u bazi; status se postavlja prije svake radnje

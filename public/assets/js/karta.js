@@ -35,7 +35,7 @@
         'Radovi: završeni': slojevi.radoviZavrseni,
         'Promet: incidenti': slojevi.incidenti,
         'Promet: protok': slojevi.protok
-    }, { collapsed: false }).addTo(karta);
+    }, { collapsed: window.innerWidth < 576 }).addTo(karta); // na mobitelu sklopljeno
 
     function dohvati(putanja) {
         return fetch(api + putanja, { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' })

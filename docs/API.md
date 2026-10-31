@@ -119,6 +119,45 @@ Pravila:
 
 Unos, izmjenu i brisanje radova administrator radi u web sučelju (`/admin/radovi`).
 
+### Primjer zahtjeva za svaku krajnju točku (cURL)
+
+`$API` = `http://localhost/zagreb-prijave/api/v1`; `kolacici.txt` i `$CSRF` dobivaju se prijavom (vidi [Autentifikacija](#autentifikacija)). Primjeri odgovora i mogućih pogrešaka su uz svaku krajnju točku u nastavku.
+
+```bash
+# Sesija
+curl -c kolacici.txt $API/sesija
+curl -b kolacici.txt -c kolacici.txt -H "Content-Type: application/json" -H "X-CSRF-Token: $CSRF" \
+     -d '{"email":"urednik.lea@zagreb-prijave.test","lozinka":"..."}' $API/sesija
+curl -b kolacici.txt -H "X-CSRF-Token: $CSRF" -X DELETE $API/sesija
+
+# Vijesti
+curl "$API/vijesti?q=promet&kategorija=2&stranica=1&po_stranici=10"
+curl $API/vijesti/1
+curl -b kolacici.txt -H "Content-Type: application/json" -H "X-CSRF-Token: $CSRF" \
+     -d '{"naslov":"Zatvaranje Savske ceste","sazetak":"Savska cesta bit će zatvorena u subotu.","sadrzaj":"<p>Obilazak preko Vukovarske.</p>","kategorija_id":2}' \
+     $API/vijesti
+curl -b kolacici.txt -H "Content-Type: application/json" -H "X-CSRF-Token: $CSRF" \
+     -X PATCH -d '{"status":"objavljeno"}' $API/vijesti/10
+curl -b kolacici.txt -H "X-CSRF-Token: $CSRF" -X DELETE $API/vijesti/10
+
+# Kategorije
+curl $API/kategorije
+
+# Prijave
+curl "$API/prijave?status=PRIJAVLJENO&cetvrt=1&po_stranici=20"
+curl -b kolacici.txt "$API/prijave?moje=1"
+curl -b kolacici.txt $API/prijave/7
+curl -b kolacici.txt -H "X-CSRF-Token: $CSRF" -F cetvrt_id=4 -F vrsta_id=2 -F "naslov=Ne radi lampa" \
+     -F "opis=Lampa ne svijetli tjedan dana." -F lat=45.8131 -F lng=15.9775 -F "slika=@foto.jpg" $API/prijave
+curl -b kolacici.txt -H "Content-Type: application/json" -H "X-CSRF-Token: $CSRF" \
+     -X PATCH -d '{"status":"U_RADU"}' $API/prijave/3
+
+# Radovi i promet
+curl "$API/radovi?aktivni=1&vrsta=cesta"
+curl $API/promet
+curl "$API/promet?simulacija=nedostupan"
+```
+
 ---
 
 ## Sesija

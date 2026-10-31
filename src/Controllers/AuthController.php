@@ -20,7 +20,7 @@ final class AuthController
     public function login(): void
     {
         $email = post('email');
-        $result = (new AuthService())->attemptLogin($email, post('lozinka'), $_SERVER['REMOTE_ADDR'] ?? '');
+        $result = (new AuthService())->attemptLogin($email, post('lozinka'), client_ip());
 
         if (!$result['ok']) {
             // 401 neispravni podaci, 429 previše pokušaja

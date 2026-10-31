@@ -24,7 +24,7 @@ naslov "Javna karta"
 check "GET /karta (gost)" "$(code "$B/karta")" "200"
 has   "  → Leaflet sa SRI" 'leaflet@1.9.4/dist/leaflet.js'
 has   "  → karta.js" 'js/karta.js'
-has   "  → adresa API-ja" 'data-api="/zagreb-prijave/api/v1"'
+has   "  → adresa API-ja" "data-api=\"$BP/api/v1\""
 has   "  → granice Zagreba" 'data-granice="\[\[45.7,15.8\],\[45.95,16.25\]\]"'
 has   "  → atribucija OSM i TomTom" 'OpenStreetMap suradnici. Promet: © TomTom'
 has   "  → poveznica u izborniku" '>Karta</a>'

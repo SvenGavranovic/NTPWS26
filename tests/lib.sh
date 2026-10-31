@@ -3,6 +3,8 @@
 # Ne pokreće se samostalno – učitavaju ga tests/*.sh.
 
 B="${APP_URL:-http://localhost/zagreb-prijave}"
+# osnovna putanja aplikacije, npr. "/zagreb-prijave" (ili "" ako je aplikacija u korijenu)
+BP=$(echo "$B" | sed -E 's#^https?://[^/]+##; s#/$##')
 MYSQL="${MYSQL:-/c/xampp/mysql/bin/mysql.exe}"
 PHP="${PHP:-/c/xampp/php/php.exe}"
 KORIJEN="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

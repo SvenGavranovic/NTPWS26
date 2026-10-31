@@ -107,7 +107,10 @@ final class PrijavaController
             return;
         }
         $slika = (new PrijavaSlika())->find($id, $slikaId);
-        if ($slika === null || !PrijavaService::canSeeImage(Auth::user(), $prijava, $slika)) {
+        $vidljive = $slika === null ? [] : array_column(
+            PrijavaService::visibleImages(Auth::user(), $prijava, (new PrijavaSlika())->forReport($id)), 'id'
+        );
+        if ($slika === null || !in_array($slika['id'], $vidljive, true)) {
             View::error(404, 'Slika ne postoji.');
             return;
         }

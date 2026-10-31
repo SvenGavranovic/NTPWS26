@@ -413,7 +413,22 @@ hasnt "  → nema traga podmetnutog URL-a" '127.0.0.1'
 check "cache prometa nije dostupan izvana" "$(code --path-as-is "$B/storage/cache/promet.json")" "404"
 
 # ---------------------------------------------------------------------
-naslov "14. Pogađanje lozinke – brute force (A07)"
+naslov "14. Iza HTTPS tunela (cloudflared na istom računalu)"
+# Testovi idu s localhosta, pa simuliraju zaglavlja koja dodaje cloudflared.
+# ---------------------------------------------------------------------
+code -H 'X-Forwarded-Proto: https' "$B/racun/prijava" >/dev/null
+header_has "kolačić sesije dobiva Secure kad je veza do preglednika HTTPS" 'Set-Cookie: ZGPRIJAVE=.*secure'
+code "$B/racun/prijava" >/dev/null
+header_hasnt "  → bez tunela (http://localhost) nema Secure" 'Set-Cookie: ZGPRIJAVE=.*secure'
+J="$T/tunel.jar"; t=$(tok "$J" /racun/prijava)
+code -b "$J" -c "$J" -H 'CF-Connecting-IP: 203.0.113.7' -X POST --data-urlencode "_csrf=$t" -d 'email=tunel@zagreb-prijave.test&lozinka=kriva123' "$B/racun/prijava" >/dev/null
+eq    "neuspjela prijava bilježi stvarnu IP klijenta iza tunela" "$(echo "SELECT ip FROM pokusaji_prijave WHERE email='tunel@zagreb-prijave.test' ORDER BY id DESC LIMIT 1" | SQL)" "203.0.113.7"
+code -b "$J" -c "$J" -H 'CF-Connecting-IP: <script>' -X POST --data-urlencode "_csrf=$t" -d 'email=tunel@zagreb-prijave.test&lozinka=kriva123' "$B/racun/prijava" >/dev/null
+IP=$(echo "SELECT ip FROM pokusaji_prijave WHERE email='tunel@zagreb-prijave.test' ORDER BY id DESC LIMIT 1" | SQL)
+if [[ "$IP" == "127.0.0.1" || "$IP" == "::1" ]]; then ok "  → neispravna vrijednost zaglavlja se ignorira ($IP)"; else fail "  → upisano: $IP"; fi
+
+# ---------------------------------------------------------------------
+naslov "15. Pogađanje lozinke – brute force (A07)"
 # Na kraju, jer blokada po IP-u utječe na sve daljnje prijave s ovog računala.
 # ---------------------------------------------------------------------
 echo "DELETE FROM pokusaji_prijave" | SQL
