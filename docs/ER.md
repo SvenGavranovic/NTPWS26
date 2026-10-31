@@ -29,6 +29,8 @@ erDiagram
     gradske_cetvrti |o--o{ radovi : "lokacija"
     korisnici ||--o{ radovi : "unio (admin)"
 
+    korisnici ||--o{ skriveni_incidenti : "sakrio (admin)"
+
     uloge {
         tinyint id PK
         varchar kod UK "korisnik, radnik, urednik, admin"
@@ -135,7 +137,23 @@ erDiagram
         datetime kreirano_u
         datetime azurirano_u
     }
+    skriveni_incidenti {
+        int id PK
+        char incident_hash UK "SHA-256 TomTom ID-a"
+        varchar opis
+        varchar razlog
+        int sakrio_id FK
+        datetime kreirano_u
+    }
+    pokusaji_prijave {
+        bigint id PK
+        varchar email
+        varchar ip
+        datetime vrijeme
+    }
 ```
+
+`pokusaji_prijave` namjerno nema strani ključ prema korisnicima: bilježe se i pokušaji prijave za e-mailove koji ne postoje (zaštita od pogađanja lozinke).
 
 ## Pravila brisanja (ON DELETE)
 
@@ -143,7 +161,7 @@ erDiagram
 |---|---|---|
 | `korisnici.uloga_id → uloge` | RESTRICT | Uloga koju netko ima ne smije nestati. |
 | `vijesti.kategorija_id → kategorije_vijesti` | RESTRICT | **Kategorija s vijestima se ne može obrisati** (zahtjev kolegija). |
-| `vijesti.autor_id`, `prijave.korisnik_id`, `zadaci.radnik_id`, `zadaci.dodijelio_id`, `povijest_statusa.korisnik_id`, `prijava_slike.ucitao_id`, `radovi.unio_id → korisnici` | RESTRICT | Korisnici se **deaktiviraju, a ne brišu**, kako se ne bi izgubio trag tko je što napravio. |
+| `vijesti.autor_id`, `prijave.korisnik_id`, `zadaci.radnik_id`, `zadaci.dodijelio_id`, `povijest_statusa.korisnik_id`, `prijava_slike.ucitao_id`, `radovi.unio_id`, `skriveni_incidenti.sakrio_id → korisnici` | RESTRICT | Korisnici se **deaktiviraju, a ne brišu**, kako se ne bi izgubio trag tko je što napravio. |
 | `prijave.cetvrt_id`, `prijave.vrsta_id`, `radovi.cetvrt_id` | RESTRICT | Šifrarnik koji se koristi ne smije se obrisati. |
 | `prijava_slike`, `zadaci`, `povijest_statusa → prijave` | CASCADE | Ti zapisi nemaju smisla bez prijave. Ako admin obriše prijavu (npr. spam), brišu se i oni. Datoteke slika s diska briše PHP. |
 

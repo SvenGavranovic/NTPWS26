@@ -77,6 +77,22 @@ $poruka = static fn (string $polje): string => isset($errors[$polje])
                 <?= $poruka('opis') ?>
             </div>
 
+            <div class="mb-3">
+                <label class="form-label">Lokacija na karti <span class="text-body-secondary">(neobavezno, kliknite na kartu)</span></label>
+                <div class="odabir-lokacije rounded-3 border<?= $invalid('lokacija') ?>" data-odabir-lokacije
+                     data-lat="lat" data-lng="lng" data-granice="<?= e(json_encode(\App\Services\Geo::bounds())) ?>"></div>
+                <input type="hidden" id="lat" name="lat" value="<?= e($old['lat'] ?? '') ?>">
+                <input type="hidden" id="lng" name="lng" value="<?= e($old['lng'] ?? '') ?>">
+                <div class="d-flex flex-wrap gap-2 align-items-center mt-1">
+                    <span class="form-text me-auto" data-lokacija-poruka>Lokacija nije odabrana.</span>
+                    <button type="button" class="btn btn-sm btn-outline-primary d-none" data-moja-lokacija>Moja lokacija</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-ukloni-lokaciju>Ukloni lokaciju</button>
+                </div>
+                <?php if (isset($errors['lokacija'])): ?>
+                    <div class="invalid-feedback d-block"><?= e($errors['lokacija']) ?></div>
+                <?php endif; ?>
+            </div>
+
             <div class="mb-4">
                 <label for="adresa" class="form-label">Adresa ili opis lokacije <span class="text-body-secondary">(neobavezno)</span></label>
                 <input type="text" class="form-control<?= $invalid('adresa') ?>" id="adresa" name="adresa" maxlength="255"

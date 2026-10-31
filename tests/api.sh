@@ -76,7 +76,7 @@ check "valjan primjer" "$(code -b "$LEA" "${JSON[@]}" -H "X-CSRF-Token: $tL" --d
 NID=$(jv data.id)
 header_has "  → Location" "Location: /zagreb-prijave/api/v1/vijesti/$NID"
 eq    "  → status nacrt (zadano), autor = Lea" "$(jv data.status)/$(jv data.autor_id)" "nacrt/2"
-eq    "  → naslov s č (UTF-8 kroz \\u)" "$(echo "SELECT sazetak FROM vijesti WHERE id=$NID" | SQL)" "Savska cesta bit će zatvorena u subotu."
+eq    "  → sažetak s č (UTF-8)" "$(echo "SELECT sazetak FROM vijesti WHERE id=$NID" | SQL)" "Savska cesta bit će zatvorena u subotu."
 hasnt "  → <script> uklonjen (HTMLPurifier)" '<script>'
 check "  → nacrt nije javan" "$(code "$A/vijesti/$NID")" "404"
 check "nevaljan primjer" "$(code -b "$LEA" "${JSON[@]}" -H "X-CSRF-Token: $tL" --data "$NEVALJAN" "$A/vijesti")" "400"

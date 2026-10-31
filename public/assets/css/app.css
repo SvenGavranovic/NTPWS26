@@ -118,3 +118,15 @@ a:hover { color: var(--zg-plava-tamna); }
 .kanban-kartica.hitnost-kriticna { border-left-color: var(--bs-danger); }
 .kanban-kartica.sortable-ghost { opacity: .4; }
 @media (max-width: 991.98px) { .kanban { grid-template-columns: repeat(5, 16rem); } }
+
+/* --- Karta ----------------------------------------------------------- */
+.karta { height: 70vh; min-height: 420px; }
+.odabir-lokacije { height: 320px; }
+.ikona-rad { border: 2px solid #fff; border-radius: 3px; box-shadow: 0 0 0 1px rgba(0,0,0,.35); }
+.ikona-rad-u_tijeku { background: #fd7e14; }
+.ikona-rad-planirano { background: #6f42c1; }
+.legenda-tocka, .legenda-kvadrat, .legenda-crta { display: inline-block; vertical-align: middle; }
+.legenda-tocka { width: 12px; height: 12px; border-radius: 50%; }
+.legenda-kvadrat { width: 12px; height: 12px; border-radius: 2px; }
+.legenda-crta { width: 22px; height: 5px; border-radius: 2px; }
+.ikona-rad-zavrseno { background: #adb5bd; }

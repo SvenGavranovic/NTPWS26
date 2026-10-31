@@ -14,6 +14,7 @@ USE zagreb_prijave;
 SET NAMES utf8mb4;
 
 SET FOREIGN_KEY_CHECKS = 0;
+DROP TABLE IF EXISTS skriveni_incidenti;
 DROP TABLE IF EXISTS pokusaji_prijave;
 DROP TABLE IF EXISTS povijest_statusa;
 DROP TABLE IF EXISTS prijava_slike;
@@ -285,4 +286,25 @@ CREATE TABLE pokusaji_prijave (
   PRIMARY KEY (id),
   KEY idx_pokusaji_email (email, vrijeme),
   KEY idx_pokusaji_ip (ip, vrijeme)
+) ENGINE=InnoDB;
+
+-- ---------------------------------------------------------------------
+-- 13. SKRIVENI INCIDENTI (TomTom)
+-- Administrator skriva zastarjele ili pogrešne incidente vanjskog servisa.
+-- TomTomov ID može imati stotine znakova, pa se sprema njegov SHA-256 (64 znaka);
+-- opis je snimka u trenutku skrivanja.
+-- ---------------------------------------------------------------------
+CREATE TABLE skriveni_incidenti (
+  id          INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  incident_hash CHAR(64)   NOT NULL,
+  opis        VARCHAR(255) NOT NULL,
+  razlog      VARCHAR(255) NOT NULL,
+  sakrio_id   INT UNSIGNED NOT NULL,
+  kreirano_u  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_skriveni_incident (incident_hash),
+  KEY idx_skriveni_sakrio (sakrio_id),
+  CONSTRAINT fk_skriveni_sakrio
+    FOREIGN KEY (sakrio_id) REFERENCES korisnici (id)
+    ON UPDATE CASCADE ON DELETE RESTRICT
 ) ENGINE=InnoDB;

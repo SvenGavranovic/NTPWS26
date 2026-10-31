@@ -35,6 +35,8 @@ final class PrijavaController
             'naslov'    => post('naslov'),
             'opis'      => post('opis'),
             'adresa'    => post('adresa'),
+            'lat'       => post('lat'),
+            'lng'       => post('lng'),
         ];
         $result = (new PrijavaService())->create((int) Auth::user()['id'], $input, $_FILES['slika'] ?? null);
 
@@ -93,6 +95,7 @@ final class PrijavaController
             'jeRadnik'  => $korisnik['uloga'] === 'radnik' && (int) $prijava['radnik_id'] === (int) $korisnik['id'],
             'radnici'   => $korisnik['uloga'] === 'admin' ? (new Korisnik())->activeWorkers() : [],
             'maxMb'     => intdiv(PrijavaService::MAX_SLIKA, 1024 * 1024),
+            'karta'     => $prijava['lat'] !== null,
         ]);
     }
 
@@ -147,6 +150,7 @@ final class PrijavaController
             'cetvrti' => $sifrarnik->cetvrti(),
             'vrste'   => $sifrarnik->vrsteProblema(),
             'maxMb'   => intdiv(PrijavaService::MAX_SLIKA, 1024 * 1024),
+            'karta'   => true,
         ], $status);
     }
 }

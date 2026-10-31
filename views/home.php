@@ -30,6 +30,7 @@ $koraci = [
                     <?php else: ?>
                         <a href="<?= e(url('/racun/registracija')) ?>" class="btn btn-light btn-lg text-zagreb fw-semibold">Registrirajte se i prijavite problem</a>
                     <?php endif; ?>
+                    <a href="<?= e(url('/karta')) ?>" class="btn btn-outline-light btn-lg">Karta</a>
                     <a href="<?= e(url('/vijesti')) ?>" class="btn btn-outline-light btn-lg">Vijesti</a>
                 </div>
             </div>

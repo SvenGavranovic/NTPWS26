@@ -11,6 +11,7 @@ declare(strict_types=1);
 use App\Controllers\AdminController;
 use App\Controllers\Api\KategorijeApiController;
 use App\Controllers\Api\PrijaveApiController;
+use App\Controllers\Api\PrometApiController;
 use App\Controllers\Api\RadoviApiController;
 use App\Controllers\Api\SesijaApiController;
 use App\Controllers\Api\VijestiApiController;
@@ -18,10 +19,13 @@ use App\Controllers\AdminPrijavaController;
 use App\Controllers\AuthController;
 use App\Controllers\CategoryController;
 use App\Controllers\HomeController;
+use App\Controllers\KartaController;
 use App\Controllers\NewsAdminController;
 use App\Controllers\NewsController;
 use App\Controllers\PrijavaController;
 use App\Controllers\ProfileController;
+use App\Controllers\PrometAdminController;
+use App\Controllers\RadAdminController;
 use App\Controllers\UserAdminController;
 use App\Controllers\ZadatakController;
 
@@ -31,6 +35,7 @@ $urednistvo = ['uloge' => ['urednik', 'admin']];
 // Javno
 $router->get('/',             [HomeController::class, 'index']);
 $router->get('/o-projektu',   [HomeController::class, 'about']);
+$router->get('/karta',        [KartaController::class, 'index']);
 $router->get('/vijesti',      [NewsController::class, 'index']);
 $router->get('/vijesti/{id}', [NewsController::class, 'show']);
 
@@ -74,6 +79,17 @@ $router->post('/admin/prijave/{id}/hitnost',  [AdminPrijavaController::class, 'h
 $router->post('/admin/prijave/{id}/odobri',   [AdminPrijavaController::class, 'approve'], $samoAdmin);
 $router->post('/admin/prijave/{id}/vrati',    [AdminPrijavaController::class, 'reject'],  $samoAdmin);
 
+$router->get('/admin/radovi',              [RadAdminController::class, 'index'],   $samoAdmin);
+$router->get('/admin/radovi/novi',         [RadAdminController::class, 'create'],  $samoAdmin);
+$router->post('/admin/radovi',             [RadAdminController::class, 'store'],   $samoAdmin);
+$router->get('/admin/radovi/{id}/uredi',   [RadAdminController::class, 'edit'],    $samoAdmin);
+$router->post('/admin/radovi/{id}',        [RadAdminController::class, 'update'],  $samoAdmin);
+$router->post('/admin/radovi/{id}/obrisi', [RadAdminController::class, 'destroy'], $samoAdmin);
+
+$router->get('/admin/promet',                       [PrometAdminController::class, 'index'],  $samoAdmin);
+$router->post('/admin/promet/sakrij',               [PrometAdminController::class, 'hide'],   $samoAdmin);
+$router->post('/admin/promet/skriveni/{id}/vrati',  [PrometAdminController::class, 'unhide'], $samoAdmin);
+
 $router->get('/admin/kategorije',              [CategoryController::class, 'index'],   $samoAdmin);
 $router->post('/admin/kategorije',             [CategoryController::class, 'store'],   $samoAdmin);
 $router->post('/admin/kategorije/{id}',        [CategoryController::class, 'update'],  $samoAdmin);
@@ -102,3 +118,4 @@ $router->get("{$api}/prijave/{id}",   [PrijaveApiController::class, 'show'],   [
 $router->patch("{$api}/prijave/{id}", [PrijaveApiController::class, 'update'], ['auth' => true]);
 
 $router->get("{$api}/radovi", [RadoviApiController::class, 'index']);
+$router->get("{$api}/promet", [PrometApiController::class, 'show']);

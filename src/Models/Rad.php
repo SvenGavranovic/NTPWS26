@@ -50,6 +50,45 @@ final class Rad
         return (int) $stmt->fetchColumn();
     }
 
+    public function findById(int $id): ?array
+    {
+        $stmt = $this->db->prepare('SELECT * FROM radovi WHERE id = ?');
+        $stmt->execute([$id]);
+        return $stmt->fetch() ?: null;
+    }
+
+    public function create(array $d, int $adminId): int
+    {
+        $stmt = $this->db->prepare(
+            'INSERT INTO radovi (naslov, opis, vrsta, utjecaj_na_promet, cetvrt_id, adresa, lat, lng, pocetak, kraj, unio_id)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+        );
+        $stmt->execute([
+            $d['naslov'], $d['opis'], $d['vrsta'], $d['utjecaj_na_promet'], $d['cetvrt_id'], $d['adresa'],
+            $d['lat'], $d['lng'], $d['pocetak'], $d['kraj'], $adminId,
+        ]);
+        return (int) $this->db->lastInsertId();
+    }
+
+    public function update(int $id, array $d): void
+    {
+        $stmt = $this->db->prepare(
+            'UPDATE radovi SET naslov = ?, opis = ?, vrsta = ?, utjecaj_na_promet = ?, cetvrt_id = ?, adresa = ?,
+                               lat = ?, lng = ?, pocetak = ?, kraj = ?
+              WHERE id = ?'
+        );
+        $stmt->execute([
+            $d['naslov'], $d['opis'], $d['vrsta'], $d['utjecaj_na_promet'], $d['cetvrt_id'], $d['adresa'],
+            $d['lat'], $d['lng'], $d['pocetak'], $d['kraj'], $id,
+        ]);
+    }
+
+    public function delete(int $id): void
+    {
+        $stmt = $this->db->prepare('DELETE FROM radovi WHERE id = ?');
+        $stmt->execute([$id]);
+    }
+
     /** @return array{0: string, 1: array<string, int|string>} */
     private function where(array $f): array
     {

@@ -383,7 +383,37 @@ check "radnik preko API-ja mijenja tuđi zadatak" "$(code -b "$IVAN_API" -H 'Con
 check "radnik preko API-ja dodjeljuje zadatak sebi" "$(code -b "$IVAN_API" -H 'Content-Type: application/json' -H "X-CSRF-Token: $tIA" -X PATCH --data '{"radnik_id":4}' "$A/prijave/2")" "403"
 
 # ---------------------------------------------------------------------
-naslov "13. Pogađanje lozinke – brute force (A07)"
+naslov "13. Karta, radovi i promet (TomTom proxy)"
+# ---------------------------------------------------------------------
+ADMIN=$(prijava admin@zagreb-prijave.test); tAd=$(tok "$ADMIN" /admin/radovi)
+LEA=$(prijava urednik.lea@zagreb-prijave.test)
+IVAN=$(prijava radnik.ivan@zagreb-prijave.test)
+for J in "$LEA" "$IVAN" "$ANA"; do
+    t=$(tok "$J" /prijave/nova)
+    s1=$(code -b "$J" -X POST --data-urlencode "_csrf=$t" -d 'naslov=Hakirani radovi' "$B/admin/radovi")
+    s2=$(code -b "$J" -X POST --data-urlencode "_csrf=$t" "$B/admin/radovi/1/obrisi")
+    if [[ "$s1 $s2" == "403  403 " ]]; then ok "neadmin ne može unositi ni brisati radove (403/403)"; else fail "neadmin radovi: $s1 / $s2"; fi
+done
+eq    "  → radovi netaknuti" "$(echo 'SELECT COUNT(*) FROM radovi' | SQL)" "5"
+code -b "$ADMIN" -X POST --data-urlencode "_csrf=$tAd" --data-urlencode 'naslov=<script>alert("radovi")</script>' -d 'vrsta=cesta' -d 'utjecaj_na_promet=nema' \
+    -d 'lat=45.81' -d 'lng=15.97' -d 'pocetak=2026-11-01T08:00' --data-urlencode 'adresa="><img src=x onerror=alert(1)>' "$B/admin/radovi" >/dev/null
+code -b "$ADMIN" "$B/admin/radovi" >/dev/null
+hasnt "pohranjeni XSS u nazivu radova escapean (popis)" '<script>alert("radovi")'
+hasnt "  → i u adresi" '<img src=x'
+check "lokacija radova '45.8; DROP TABLE radovi'" "$(code -b "$ADMIN" -X POST --data-urlencode "_csrf=$tAd" -d 'naslov=Test radovi' -d 'vrsta=cesta' -d 'utjecaj_na_promet=nema' --data-urlencode 'lat=45.8; DROP TABLE radovi' -d 'lng=15.97' -d 'pocetak=2026-11-01T08:00' "$B/admin/radovi")" "422"
+eq    "  → tablica postoji" "$(echo 'SELECT COUNT(*) > 0 FROM radovi' | SQL)" "1"
+for sim in "" testni nedostupan neispravno; do
+    code "$B/api/v1/promet${sim:+?simulacija=$sim}" >/dev/null
+    if ! grep -q 'key=\|api\.tomtom\.com\|TOMTOM_API_KEY=' "$T/body"; then ok "promet${sim:+ ($sim)}: odgovor ne otkriva ključ ni adresu TomToma"; else fail "promet ($sim) otkriva ključ/URL"; fi
+done
+check "promet: ?simulacija=../../.env (nepoznata vrijednost)" "$(code "$B/api/v1/promet?simulacija=../../.env")" "200"
+hasnt "  → bez sadržaja .env" 'DB_PASS'
+check "promet: klijent ne može zadati bbox/URL (SSRF)" "$(code "$B/api/v1/promet?bbox=0,0,90,90&url=http://127.0.0.1/")" "200"
+hasnt "  → nema traga podmetnutog URL-a" '127.0.0.1'
+check "cache prometa nije dostupan izvana" "$(code --path-as-is "$B/storage/cache/promet.json")" "404"
+
+# ---------------------------------------------------------------------
+naslov "14. Pogađanje lozinke – brute force (A07)"
 # Na kraju, jer blokada po IP-u utječe na sve daljnje prijave s ovog računala.
 # ---------------------------------------------------------------------
 echo "DELETE FROM pokusaji_prijave" | SQL

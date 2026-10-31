@@ -27,7 +27,10 @@ function url(string $path = '/'): string
 /** URL datoteke iz public/assets. */
 function asset(string $path): string
 {
-    return url('assets/' . ltrim($path, '/'));
+    $path = ltrim($path, '/');
+    // ?v=<vrijeme izmjene>: nakon promjene datoteke preglednik ne koristi staru kopiju
+    $datoteka = BASE_PATH . '/public/assets/' . $path;
+    return url('assets/' . $path) . (is_file($datoteka) ? '?v=' . filemtime($datoteka) : '');
 }
 
 /** Putanja zahtjeva bez osnovne putanje i query stringa. */

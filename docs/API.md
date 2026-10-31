@@ -13,8 +13,9 @@ Sve putanje u nastavku navedene su relativno na tu adresu (npr. `GET /vijesti` =
 6. [Kategorije](#kategorije)
 7. [Prijave problema](#prijave-problema)
 8. [Radovi](#radovi)
-9. [JSON Schema – valjan i nevaljan primjer](#json-schema--valjan-i-nevaljan-primjer)
-10. [Statusni kodovi](#statusni-kodovi)
+9. [Promet (TomTom)](#promet-tomtom)
+10. [JSON Schema – valjan i nevaljan primjer](#json-schema--valjan-i-nevaljan-primjer)
+11. [Statusni kodovi](#statusni-kodovi)
 
 ---
 
@@ -114,8 +115,9 @@ Pravila:
 | `GET /prijave/{id}` | detalj prijave | podnositelj, dodijeljeni radnik, admin |
 | `PATCH /prijave/{id}` | dodjela, hitnost ili promjena statusa | ovisno o radnji |
 | `GET /radovi` | radovi na infrastrukturi | svi |
+| `GET /promet` | stanje prometa (TomTom, preko proxyja s cacheom) | svi |
 
-`GET /promet` (TomTom) dodaje se uz kartu.
+Unos, izmjenu i brisanje radova administrator radi u web sučelju (`/admin/radovi`).
 
 ---
 
@@ -284,6 +286,7 @@ Isto kao na webu:
 | `naslov` | 5–150 znakova (obavezno) |
 | `opis` | 10–2000 znakova, običan tekst (obavezno) |
 | `adresa` | do 255 znakova |
+| `lat`, `lng` | lokacija (neobavezno; oba ili nijedno, unutar Zagreba: lat 45.70–45.95, lng 15.80–16.25) |
 
 Datum, hitnost (`srednja`) i status (`PRIJAVLJENO`) postavlja sustav. Odgovor `201` s detaljem prijave i zaglavljem `Location`. Pogreške: `400` (s `detalji`), `401`, `403` (CSRF), `429` (više od 10 prijava u sat vremena).
 
@@ -327,7 +330,8 @@ Odgovori: `200` (detalj), `400` (shema, neispravan radnik), `403` (uloga ili tu�
   "data": [
     {
       "id": 3, "naslov": "Održavanje tramvajske pruge", "opis": "Zamjena dotrajalih tračnica.",
-      "vrsta": "tramvajska_pruga", "utjecaj_na_promet": "djelomicna_zatvorenost",
+      "vrsta": "tramvajska_pruga", "vrsta_naziv": "Tramvajska pruga",
+      "utjecaj_na_promet": "djelomicna_zatvorenost", "utjecaj_naziv": "Djelomična zatvorenost", "stanje": "planirano",
       "cetvrt": { "id": 1, "naziv": "Donji grad" }, "adresa": null,
       "lokacija": { "lat": 45.805, "lng": 15.978 },
       "pocetak": "2026-11-10T22:00:00+01:00", "kraj": "2026-11-20T05:00:00+01:00"
@@ -335,6 +339,86 @@ Odgovori: `200` (detalj), `400` (shema, neispravan radnik), `403` (uloga ili tu�
   ],
   "meta": { "stranica": 1, "po_stranici": 1, "ukupno": 5, "ukupno_stranica": 5 }
 }
+```
+`stanje`: `planirano` (još nije počelo), `u_tijeku` ili `zavrseno`.
+
+---
+
+## Promet (TomTom)
+
+### `GET /promet`
+Stanje prometa u Zagrebu: incidenti (nesreće, radovi, zatvorene ceste, gužve) i protok na šest glavnih prometnica. Podatke dohvaća poslužitelj iz **TomTom Traffic API-ja** (Incident Details v5 i Flow Segment Data v4); klijent nikad ne razgovara s TomTomom izravno, a ključ je samo u `.env` na poslužitelju.
+
+- **Cache:** odgovor se čuva `TOMTOM_CACHE_TTL` sekundi (60–120, zadano 90). U tom razdoblju svi klijenti dobivaju isti podatak bez novog poziva TomToma.
+- **Timeout:** `TOMTOM_TIMEOUT` sekundi (zadano 5) po zahtjevu prema TomTomu.
+- **Dnevna kvota:** najviše 80 osvježavanja dnevno (besplatni plan TomToma ima 2.500 zahtjeva za incidente mjesečno).
+
+| Parametar | Opis |
+|---|---|
+| `simulacija=testni` | jasno označeni testni podaci (bez poziva TomToma) |
+| `simulacija=nedostupan` | simulira nedostupan servis |
+| `simulacija=neispravno` | simulira odgovor neočekivane strukture |
+
+Ostali parametri se ignoriraju (klijent ne može zadati područje ni adresu poziva).
+
+Odgovor `200`:
+```json
+{
+  "data": {
+    "izvor": "tomtom",
+    "testni": false,
+    "zastarjelo": false,
+    "upozorenje": null,
+    "zadnji_uspjesni_dohvat": "2026-10-31T15:40:12+01:00",
+    "osvjezavanje_s": 90,
+    "incidenti": [
+      {
+        "id": "4a3b…", "kategorija": 9, "kategorija_naziv": "Radovi na cesti",
+        "intenzitet": 2, "intenzitet_naziv": "Umjereni zastoji",
+        "opis": "Roadworks", "od": "Savska cesta", "do": "Lisinski", "ceste": [],
+        "kasnjenje_s": 240, "duljina_m": 820,
+        "pocetak": "2026-10-30T07:00:00Z", "kraj": null,
+        "zadnja_potvrda": null, "broj_potvrda": null, "dugotrajno": false,
+        "geometrija": { "tip": "LineString", "koordinate": [[45.799, 15.969], [45.7993, 15.975]] }
+      }
+    ],
+    "protok": [
+      { "naziv": "Slavonska avenija (Heinzelova)", "lat": 45.7993, "lng": 16.005,
+        "brzina": 30, "slobodna_brzina": 35, "omjer": 0.86, "zatvoreno": false, "pouzdanost": 1 }
+    ],
+    "skriveno_incidenata": 0,
+    "atribucija": "Podaci o prometu © TomTom"
+  }
+}
+```
+
+| Polje | Značenje |
+|---|---|
+| `izvor` | `tomtom` (upravo dohvaćeno), `cache` (iz cachea), `testni` (testni podaci) |
+| `testni` | `true` za testne podatke – **ne prikazuju stvarno stanje** |
+| `zastarjelo` | `true` kad TomTom nije dostupan pa se vraćaju zadnji uspješno dohvaćeni podaci |
+| `upozorenje` | razlog (kvar, kvota, testni podaci) ili `null` |
+| `zadnji_uspjesni_dohvat` | vrijeme zadnjeg uspješnog dohvata s TomToma (`null` za testne podatke) |
+| `geometrija.koordinate` | `[lat, lng]` (za Leaflet; TomTom vraća GeoJSON `[lng, lat]`, poslužitelj ih okreće) |
+| `kategorija` | TomTom `iconCategory`: 1 nesreća, 6 gužva, 7 zatvoren trak, 8 zatvorena cesta, 9 radovi… |
+| `intenzitet` | TomTom `magnitudeOfDelay`: 0 nepoznato, 1 malo, 2 umjereno, 3 veliko, 4 neodređeno (zatvoreno) |
+| `opis` | opis događaja od TomToma (na engleskom; hrvatski nije podržan) |
+| `pocetak`, `kraj` | početak i (najavljeni) kraj događaja prema TomTomu; `kraj` je često `null` |
+| `zadnja_potvrda`, `broj_potvrda` | kada je TomTom zadnji put primio potvrdu i koliko ih je bilo (samo za dio incidenata) |
+| `dugotrajno` | `true` ako događaj traje dulje od 30 dana bez najavljenog kraja – podatak je možda zastario |
+| `skriveno_incidenata` | broj incidenata koje je administrator sakrio kao zastarjele ili pogrešne (oni nisu u `incidenti`) |
+
+Ponašanje kod kvara:
+
+| Situacija | Odgovor |
+|---|---|
+| TomTom nedostupan / timeout / HTTP pogreška / neočekivana struktura, **postoji** raniji podatak | `200`, `izvor: "cache"`, `zastarjelo: true`, `upozorenje` s razlogom |
+| isto, **ne postoji** raniji podatak | `503` + `Retry-After: 60` |
+| dnevna kvota potrošena | kao kvar (stari podaci ili `503`) |
+| ključ nije postavljen u `.env` | `200` s testnim podacima (`testni: true`) |
+
+```json
+{ "greska": { "status": 503, "poruka": "Servis TomTom nije dostupan (HTTP 503).", "detalji": { "zadnji_uspjesni_dohvat": "nema podataka" } } }
 ```
 
 ---
@@ -400,6 +484,7 @@ Oba primjera automatski se provjeravaju u `tests/api.sh`.
 | `403 Forbidden` | nema ovlasti (uloga, tuđi zapis) ili CSRF token nije ispravan |
 | `404 Not Found` | resurs ne postoji (ili je vijest neobjavljena) |
 | `405 Method Not Allowed` | metoda nije podržana za putanju; zaglavlje `Allow` |
+| `503 Service Unavailable` | `GET /promet`: TomTom nije dostupan, a nema ranijih podataka; zaglavlje `Retry-After` |
 | `409 Conflict` | prijelaz statusa nije dopušten ili se status u međuvremenu promijenio |
 | `429 Too Many Requests` | previše pokušaja prijave ili previše novih prijava; zaglavlje `Retry-After` |
 | `500 Internal Server Error` | neočekivana pogreška; detalji samo u zapisniku poslužitelja |

@@ -14,6 +14,8 @@ bash tests/cms.sh           # funkcionalnost CMS-a (faza 4)
 bash tests/prijave.sh       # prijave problema (faza 5)
 bash tests/zadaci.sh        # dodjela, kanban, state machine (faza 6)
 bash tests/api.sh           # REST API i JSON Schema (faza 7)
+bash tests/karta.sh         # karta, radovi, promet (faza 8)
+bash tests/sve.sh           # sve skripte redom, uz sažetak
 ```
 
 > **Upozorenje:** skripte na početku i na kraju vraćaju bazu na početne podatke (`schema.sql` + `seed.sql`). Pokreću se samo na razvojnoj bazi.
@@ -24,7 +26,7 @@ Svaka sljedeća faza (prijave, kanban, API, TomTom) dodaje nove slučajeve u `te
 
 ## Sigurnosni testovi – `tests/sigurnost.sh`
 
-Stanje nakon faze 7: **175 / 175 prošlo** (30. 10. 2026.)
+Stanje nakon faze 8: **192 / 192 prošlo** (31. 10. 2026.)
 
 | # | Napad | Primjer zahtjeva | Očekivano | Dobiveno |
 |---|---|---|---|---|
@@ -78,9 +80,14 @@ Stanje nakon faze 7: **175 / 175 prošlo** (30. 10. 2026.)
 | 12 | Zlonamjerni JSON | 40 razina ugniježđenja; niz umjesto objekta | 400 | ✔ |
 | 12 | Tok rada preko API-ja | radnik sam zatvara prijavu, mijenja tuđi zadatak, dodjeljuje zadatak sebi | 403 | ✔ |
 | 12 | Otkrivanje informacija | 404 iz API-ja; PUT | bez putanja i SQL-a; 405 | ✔ |
-| 13 | Brute force | 5 krivih lozinki pa ispravna | 429 + `Retry-After: 900` | ✔ |
-| 13 | Brute force na nepostojeći račun | 5 pokušaja | 429 (ne otkriva postoji li račun) | ✔ |
-| 13 | Password spraying | 20 pokušaja s iste IP adrese na razne račune | 429 i za ostale račune | ✔ |
+| 13 | Radovi – ovlasti | urednica, radnik i korisnica unose i brišu radove | 403, radovi netaknuti | ✔ |
+| 13 | Pohranjeni XSS i SQLi u radovima | `<script>` u nazivu, `"><img onerror>` u adresi; `lat=45.8; DROP TABLE radovi` | escapeano u popisu; 422, tablica postoji | ✔ |
+| 13 | Curenje TomTom ključa | `/api/v1/promet` bez simulacije i sa svim simulacijama | ključ i adresa TomToma nikad u odgovoru | ✔ |
+| 13 | Zlonamjerni parametri proxyja | `?simulacija=../../.env`; `?bbox=0,0,90,90&url=http://127.0.0.1/` (SSRF) | ignorirano, bez sadržaja `.env` i podmetnutog URL-a | ✔ |
+| 13 | Cache prometa izvana | `/storage/cache/promet.json` | 404 | ✔ |
+| 14 | Brute force | 5 krivih lozinki pa ispravna | 429 + `Retry-After: 900` | ✔ |
+| 14 | Brute force na nepostojeći račun | 5 pokušaja | 429 (ne otkriva postoji li račun) | ✔ |
+| 14 | Password spraying | 20 pokušaja s iste IP adrese na razne račune | 429 i za ostale račune | ✔ |
 | – | Stabilnost | svi gornji napadi | nijedna pogreška 500 u `storage/logs/app.log` | ✔ |
 
 ### Poznata ograničenja (svjesno prihvaćena)
@@ -157,6 +164,22 @@ Stanje nakon faze 7: **128 / 128 prošlo** (30. 10. 2026.)
 | Prijave – PATCH | radnik `U_RADU` → 200, ponovno → 409, tuđi zadatak 403, sam `ZAVRSENO` 403, `CEKA_PROVJERU` → 400 (shema); admin odobrenje iz U RADU → 409; vraćanje bez komentara 400, s komentarom 200; dodjela 200; hitnost 200; dvije radnje odjednom → 400 (`oneOf`); dodjela korisnici 400; dodjela završene 409; korisnica mijenja hitnost 403; nepostojeća 404 | ✔ |
 | Radovi | 5 radova s lokacijom; `aktivni=1` (uspoređeno s bazom); `vrsta=cesta`; nepoznata vrsta (i SQLi) ignorirana | ✔ |
 | Frontend | stranica vijesti učitava `vijesti.js` s adresom API-ja; kanban mijenja status preko `PATCH /api/v1/prijave/{id}`; odjava preko API-ja | ✔ |
+
+## Testovi karte, radova i prometa – `tests/karta.sh`
+
+Stanje nakon faze 8: **92 / 92 prošlo** (31. 10. 2026.)
+
+| Područje | Scenariji | Dobiveno |
+|---|---|---|
+| Javna karta | `/karta` dostupna gostu; Leaflet sa SRI; `karta.js`; adresa API-ja; granice Zagreba; atribucija OSM i TomTom; poveznica u izborniku | ✔ |
+| Radovi – pristup | gost → prijava; korisnica i urednica (GET i POST) → 403; admin vidi 5 radova i filtar „u tijeku”; obrazac ima odabir lokacije | ✔ |
+| Radovi – validacija | prazan obrazac (naslov, vrsta, lokacija, početak); lokacija izvan Zagreba (Sisak); `lat=45.8 OR 1=1`; kraj prije početka; nepostojeća četvrt; nepoznata vrsta → 422, ništa spremljeno | ✔ |
+| Radovi – CRUD | unos (admin kao autor, koordinate, razdoblje); vidljivo u API-ju; obrazac za uređivanje s `datetime-local`; izmjena (kraj NULL); izmjena nepostojećih → 404; brisanje; brisanje bez CSRF-a → 403 | ✔ |
+| Lokacija prijave | obrazac s kartom; lokacija izvan Zagreba i samo jedna koordinata → 422; ispravna lokacija spremljena, detalj prikazuje kartu, prijava je na javnoj karti (API); prijava bez lokacije prolazi | ✔ |
+| Promet – testni odgovor | `?simulacija=testni`: oznaka `testni`, upozorenje „TESTNI PODACI”, 2 incidenta i 6 točaka protoka, koordinate `[lat, lng]`, kategorija na hrvatskom, atribucija | ✔ |
+| Promet – kvar | servis nedostupan i neočekivana struktura bez cachea → 503 JSON + `Retry-After`; sa starim cacheom → 200, `zastarjelo`, vrijeme zadnjeg uspješnog dohvata, upozorenje; simulacija ne prepisuje cache | ✔ |
+| Promet – stvarni poziv | ključ i adresa TomToma nikad u odgovoru; svježi cache se koristi bez poziva TomToma; potrošena dnevna kvota → stari podaci s upozorenjem; nepoznati parametri ignorirani; POST → 405 | ✔ |
+| Promet – skrivanje incidenata | gost → prijava, urednica → 403 (stranica i POST); bez CSRF-a → 403; nepostojeći incident i prekratak razlog → poruka, ništa spremljeno; skriveni incident ne izlazi iz API-ja (`skriveno_incidenata`); admin vidi popis s razlogom; vraćanje na kartu; vraćanje nepostojećeg → 404 | ✔ |
 
 ## Testovi prethodnih faza
 

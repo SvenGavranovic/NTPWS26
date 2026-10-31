@@ -10,7 +10,7 @@ Upute za instalaciju i pokretanje nalaze se u [README.md](../README.md).
 
 | Uloga | Što može |
 |---|---|
-| Posjetitelj (bez prijave) | čitati objavljene vijesti, pretraživati ih i filtrirati po kategoriji |
+| Posjetitelj (bez prijave) | čitati objavljene vijesti, pretraživati ih i filtrirati po kategoriji; pregledati kartu s prijavama, radovima i stanjem prometa |
 | Korisnik | sve što i posjetitelj; prijaviti problem s fotografijom; pratiti vlastite prijave; urediti profil i lozinku |
 | Radnik | sve što i korisnik; vidjeti dodijeljene zadatke na kanban ploči; započeti rad; poslati obavljeni posao na provjeru |
 | Urednik | sve što i korisnik; pisati, objavljivati i uređivati **vlastite** vijesti |
@@ -28,6 +28,20 @@ Registracijom se uvijek dobiva uloga **korisnik**. Ostale uloge dodjeljuje admin
 - Klik na **kategoriju** s lijeve strane prikazuje samo vijesti iz nje. Pretraga i kategorija mogu se kombinirati.
 - Klik na naslov otvara cijelu vijest.
 
+### Karta
+**Karta** u izborniku prikazuje Zagreb sa slojevima koje uključujete i isključujete u gornjem desnom kutu:
+
+| Sloj | Što prikazuje |
+|---|---|
+| Prijave problema | prijave s označenom lokacijom: sivo prijavljeno, plavo u obradi, zeleno riješeno |
+| Radovi | radovi na infrastrukturi: narančasto u tijeku, ljubičasto planirani |
+| Promet: incidenti | nesreće, radovi na cesti, zatvorene ceste i gužve (žuto manji, crveno veći zastoji) |
+| Promet: protok | brzina na glavnim prometnicama: zeleno slobodno, narančasto usporeno, crveno gužva |
+
+Klik na oznaku otvara detalje. Kod incidenata u prometu prikazuje se i od kada traju, najavljeni kraj i (ako postoji) zadnja potvrda; događaji koji traju dulje od 30 dana bez najavljenog kraja crtkani su i označeni kao moguće zastarjeli. Sloj **Radovi: završeni** (sivo) isključen je po zadanom i pokazuje povijest radova.
+
+Iznad karte piše vrijeme zadnjeg uspješnog dohvata podataka o prometu, koji se osvježavaju automatski (oko svakih 90 sekundi). Ako servis za promet trenutno nije dostupan, prikazuju se zadnji dohvaćeni podaci uz upozorenje; **testni podaci** uvijek su jasno označeni žutim upozorenjem. Podaci o prometu: © TomTom; karta: © OpenStreetMap suradnici.
+
 ### Registracija i prijava
 1. **Registracija** (gornji desni kut): ime, prezime, e-mail i lozinka.
    Lozinka mora imati najmanje 8 znakova, barem jedno slovo i jednu znamenku.
@@ -44,7 +58,7 @@ Registracijom se uvijek dobiva uloga **korisnik**. Ostale uloge dodjeljuje admin
 2. Odaberite **fotografiju** problema (JPG, PNG ili WebP, najviše 5 MB). Pregled se prikaže ispod polja.
 3. Odaberite **gradsku četvrt** i **vrstu problema**.
 4. Upišite **kratki naslov** (npr. „Rupa na kolniku”) i **opis**: što je problem i gdje se točno nalazi.
-5. Po želji upišite **adresu** ili opis lokacije.
+5. Po želji označite **lokaciju na karti** (klik na kartu ili gumb **Moja lokacija** na mobitelu) i upišite **adresu** ili opis lokacije. Prijave s lokacijom vide se na javnoj karti.
 6. Kliknite **Pošalji prijavu**.
 
 Datum i vrijeme prijave bilježe se automatski. Hitnost procjenjuje služba. U jednom satu moguće je poslati najviše 10 prijava.
@@ -64,7 +78,7 @@ Ako neko polje nije ispravno, obrazac se ponovno prikaže s porukom uz to polje.
 | Vraćeno na doradu | služba je vratila posao radniku |
 | Završeno | problem je riješen; prikazuje se i fotografija nakon popravka |
 
-Prijave i fotografije vide samo podnositelj, administrator i radnik kojem je prijava dodijeljena.
+Opis, fotografije i tijek prijave vide samo podnositelj, administrator i radnik kojem je prijava dodijeljena. Na javnoj karti prikazuju se samo naslov, vrsta problema, četvrt, status i lokacija – bez opisa, fotografija i podataka o podnositelju.
 
 ### Profil
 **Moj profil** (klik na ime u zaglavlju):
@@ -147,6 +161,16 @@ Svaka promjena statusa bilježi se u tijeku prijave (tko, kada, iz kojeg u koji 
 
 ### Vijesti
 **Administracija → Vijesti**: isto kao kod urednika, ali za **sve** vijesti. Autor vijesti se pri uređivanju ne mijenja.
+
+### Radovi
+**Administracija → Radovi**:
+- popis svih radova sa stanjem (planirano, u tijeku, završeno); filtar „Samo u tijeku”;
+- **+ Novi radovi**: naslov, vrsta, utjecaj na promet, početak i (ako je poznat) kraj, četvrt, adresa, opis i **lokacija** – klik na kartu postavlja oznaku, koju je moguće i povući;
+- lokacija mora biti na području Grada Zagreba, a kraj ne smije biti prije početka;
+- planirani radovi i radovi u tijeku prikazuju se na javnoj karti.
+
+### Promet
+**Administracija → Promet** prikazuje trenutne incidente iz TomToma, od najstarijeg. Podatke TomToma aplikacija ne može ispraviti, ali incident za koji pouzdano znate da ne odgovara stvarnosti (npr. cesta je ponovno otvorena) možete **sakriti**: upišite razlog i kliknite **Sakrij**. Skriveni incident ne prikazuje se na karti ni u API-ju, a karta navodi koliko je incidenata skriveno. Popis skrivenih (s razlogom, osobom i vremenom) nalazi se ispod; **Vrati na kartu** poništava skrivanje.
 
 ### Kategorije
 **Administracija → Kategorije**:

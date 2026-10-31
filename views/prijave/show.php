@@ -79,6 +79,12 @@ $vlastita = (int) $prijava['korisnik_id'] === $mojId;
             </div>
         </div>
 
+        <?php if ($prijava['lat'] !== null): ?>
+            <div class="odabir-lokacije rounded-3 border mb-4" data-prikaz-lokacije
+                 data-tocka="<?= e(json_encode([(float) $prijava['lat'], (float) $prijava['lng']])) ?>"
+                 role="img" aria-label="Lokacija prijave na karti"></div>
+        <?php endif; ?>
+
         <h2 class="h5">Tijek prijave</h2>
         <ol class="list-unstyled tijek">
             <?php foreach ($povijest as $h): ?>

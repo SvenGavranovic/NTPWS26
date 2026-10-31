@@ -8,6 +8,7 @@ use App\Core\View;
 use App\Models\Kategorija;
 use App\Models\Korisnik;
 use App\Models\Prijava;
+use App\Models\Rad;
 use App\Models\VijestCms;
 
 /** Početna stranica administracije. */
@@ -29,6 +30,7 @@ final class AdminController
                 'neaktivni'  => $korisnici->countForAdmin('', null, 0),
                 'nove'       => (int) ($poStatusu['PRIJAVLJENO'] ?? 0),
                 'provjera'   => (int) ($poStatusu['CEKA_PROVJERU'] ?? 0),
+                'radovi'     => (new Rad())->count(['aktivni' => true, 'cetvrt' => null, 'vrsta' => null]),
             ],
         ]);
     }

@@ -22,6 +22,11 @@ $flash = Session::pullFlash();
           href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
           integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH"
           crossorigin="anonymous">
+    <?php if (!empty($karta)): ?>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css"
+              integrity="sha384-sHL9NAb7lN7rfvG5lfHpm643Xkcjzp4jFvuavGOndn6pjVqS6ny56CAt3nsEVT4H"
+              crossorigin="anonymous">
+    <?php endif; ?>
     <?php if (!empty($urednik)): ?>
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.snow.css"
               integrity="sha384-ecIckRi4QlKYya/FQUbBUjS4qp65jF/J87Guw5uzTbO1C1Jfa/6kYmd6dXUF6D7i"
@@ -48,6 +53,7 @@ $flash = Session::pullFlash();
             <ul class="navbar-nav me-auto">
                 <?= nav_link('/', 'Početna') ?>
                 <?= nav_link('/vijesti', 'Vijesti') ?>
+                <?= nav_link('/karta', 'Karta') ?>
                 <?= nav_link('/o-projektu', 'O projektu') ?>
                 <?php if ($korisnik): ?>
                     <?= nav_link('/prijave/moje', 'Moje prijave') ?>
@@ -137,6 +143,13 @@ $flash = Session::pullFlash();
         integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
         crossorigin="anonymous"></script>
 <script src="<?= e(asset('js/app.js')) ?>"></script>
+<?php if (!empty($karta)): ?>
+    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"
+            integrity="sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH"
+            crossorigin="anonymous"></script>
+    <script src="<?= e(asset('js/odabir-lokacije.js')) ?>"></script>
+    <script src="<?= e(asset('js/karta.js')) ?>"></script>
+<?php endif; ?>
 <?php if (!empty($vijestiUzivo)): ?>
     <script src="<?= e(asset('js/vijesti.js')) ?>"></script>
 <?php endif; ?>

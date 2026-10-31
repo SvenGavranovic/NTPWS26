@@ -66,7 +66,7 @@ final class PrijaveApiController
             return;
         }
         $input = [];
-        foreach (['cetvrt_id', 'vrsta_id', 'naslov', 'opis', 'adresa'] as $polje) {
+        foreach (['cetvrt_id', 'vrsta_id', 'naslov', 'opis', 'adresa', 'lat', 'lng'] as $polje) {
             $input[$polje] = post($polje);
         }
 

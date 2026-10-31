@@ -33,10 +33,10 @@ final class Prijava
     public function create(int $korisnikId, array $d): int
     {
         $stmt = $this->db->prepare(
-            'INSERT INTO prijave (korisnik_id, cetvrt_id, vrsta_id, naslov, opis, adresa)
-             VALUES (?, ?, ?, ?, ?, ?)'
+            'INSERT INTO prijave (korisnik_id, cetvrt_id, vrsta_id, naslov, opis, adresa, lat, lng)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
         );
-        $stmt->execute([$korisnikId, $d['cetvrt_id'], $d['vrsta_id'], $d['naslov'], $d['opis'], $d['adresa']]);
+        $stmt->execute([$korisnikId, $d['cetvrt_id'], $d['vrsta_id'], $d['naslov'], $d['opis'], $d['adresa'], $d['lat'] ?? null, $d['lng'] ?? null]);
         return (int) $this->db->lastInsertId();
     }
 

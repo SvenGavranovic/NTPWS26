@@ -3,6 +3,7 @@
 
 $kartice = [
     ['/admin/prijave', 'Prijave', $broj['nove'] . ' novih · ' . $broj['provjera'] . ' čeka provjeru', 'Dodjela radnicima, hitnost, odobrenje završetka'],
+    ['/admin/radovi', 'Radovi', $broj['radovi'] . ' u tijeku', 'Unos radova na infrastrukturi za kartu'],
     ['/admin/vijesti', 'Vijesti', $broj['objavljeno'] . ' objavljeno · ' . $broj['nacrt'] . ' u nacrtu', 'Sve vijesti, objava i povlačenje'],
     ['/admin/kategorije', 'Kategorije', $broj['kategorije'] . ' kategorija', 'Dodavanje, uređivanje i brisanje praznih kategorija'],
     ['/admin/korisnici', 'Korisnici', $broj['aktivni'] . ' aktivnih · ' . $broj['neaktivni'] . ' deaktiviranih', 'Uloge te aktivacija i deaktivacija računa'],
@@ -27,4 +28,3 @@ $kartice = [
     <?php endforeach; ?>
 </div>
 
-<p class="text-body-secondary small mt-4 mb-0">Radovi na infrastrukturi dodaju se u fazi 8.</p>

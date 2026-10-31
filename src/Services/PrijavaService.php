@@ -129,11 +129,15 @@ final class PrijavaService
         if (mb_strlen($adresa) > 255) {
             $errors['adresa'] = 'Adresa smije imati najviše 255 znakova.';
         }
+        [$lat, $lng, $greska] = Geo::parse($input['lat'] ?? '', $input['lng'] ?? '');
+        if ($greska !== null) {
+            $errors['lokacija'] = $greska;
+        }
 
         return [
             [
                 'cetvrt_id' => $cetvrtId, 'vrsta_id' => $vrstaId, 'naslov' => $naslov,
-                'opis' => $opis, 'adresa' => $adresa !== '' ? $adresa : null,
+                'opis' => $opis, 'adresa' => $adresa !== '' ? $adresa : null, 'lat' => $lat, 'lng' => $lng,
             ],
             $errors,
         ];
