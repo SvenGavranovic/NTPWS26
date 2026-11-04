@@ -10,6 +10,7 @@ declare(strict_types=1);
 
 use App\Controllers\AdminController;
 use App\Controllers\Api\KategorijeApiController;
+use App\Controllers\Api\LokacijaApiController;
 use App\Controllers\Api\PrijaveApiController;
 use App\Controllers\Api\PrometApiController;
 use App\Controllers\Api\RadoviApiController;
@@ -119,3 +120,4 @@ $router->patch("{$api}/prijave/{id}", [PrijaveApiController::class, 'update'], [
 
 $router->get("{$api}/radovi", [RadoviApiController::class, 'index']);
 $router->get("{$api}/promet", [PrometApiController::class, 'show']);
+$router->get("{$api}/lokacija", [LokacijaApiController::class, 'show'], ['auth' => true]);

@@ -30,11 +30,18 @@ $poruka = static fn (string $polje): string => isset($errors[$polje])
         <form method="post" action="<?= e(url('/prijave')) ?>" enctype="multipart/form-data" novalidate>
             <?= csrf_field() ?>
 
-            <div class="mb-3">
+            <div class="mb-3" data-odabir-slike data-max-bajtova="<?= (int) $maxMb * 1024 * 1024 ?>">
                 <label for="slika" class="form-label">Fotografija problema</label>
+                <div class="d-none gap-2 mb-2" data-gumbi-slike>
+                    <button type="button" class="btn btn-primary flex-fill" data-kamera>📷 Fotografiraj</button>
+                    <button type="button" class="btn btn-outline-primary flex-fill" data-galerija>🖼️ Iz galerije</button>
+                </div>
                 <input type="file" class="form-control<?= $invalid('slika') ?>" id="slika" name="slika" required
                        accept="image/jpeg,image/png,image/webp" aria-describedby="slika-pomoc" data-pregled="slika-pregled">
-                <div id="slika-pomoc" class="form-text">JPG, PNG ili WebP, najviše <?= (int) $maxMb ?> MB.</div>
+                <div id="slika-pomoc" class="form-text">
+                    JPG, PNG ili WebP, najviše <?= (int) $maxMb ?> MB. Veće fotografije s mobitela automatski se smanjuju.
+                </div>
+                <div class="form-text text-danger d-none" data-slika-poruka></div>
                 <?= $poruka('slika') ?>
                 <img id="slika-pregled" alt="Pregled odabrane fotografije" class="img-fluid rounded mt-2 d-none" style="max-height: 16rem">
             </div>
@@ -78,14 +85,18 @@ $poruka = static fn (string $polje): string => isset($errors[$polje])
             </div>
 
             <div class="mb-3">
-                <label class="form-label">Lokacija na karti <span class="text-body-secondary">(neobavezno, kliknite na kartu)</span></label>
+                <label class="form-label">Lokacija <span class="text-body-secondary">(neobavezno)</span></label>
+                <button type="button" class="btn btn-outline-primary w-100 mb-2" data-moja-lokacija>
+                    📍 Koristi trenutnu lokaciju uređaja
+                </button>
+                <div class="form-text mt-0 mb-2">Ili kliknite na kartu; oznaku možete povući na točno mjesto.</div>
                 <div class="odabir-lokacije rounded-3 border<?= $invalid('lokacija') ?>" data-odabir-lokacije
-                     data-lat="lat" data-lng="lng" data-granice="<?= e(json_encode(\App\Services\Geo::bounds())) ?>"></div>
+                     data-lat="lat" data-lng="lng" data-granice="<?= e(json_encode(\App\Services\Geo::bounds())) ?>"
+                     data-cetvrt="cetvrt_id" data-api-lokacija="<?= e(url('/api/v1/lokacija')) ?>"></div>
                 <input type="hidden" id="lat" name="lat" value="<?= e($old['lat'] ?? '') ?>">
                 <input type="hidden" id="lng" name="lng" value="<?= e($old['lng'] ?? '') ?>">
                 <div class="d-flex flex-wrap gap-2 align-items-center mt-1">
-                    <span class="form-text me-auto" data-lokacija-poruka>Lokacija nije odabrana.</span>
-                    <button type="button" class="btn btn-sm btn-outline-primary d-none" data-moja-lokacija>Moja lokacija</button>
+                    <span class="form-text me-auto" data-lokacija-poruka role="status">Lokacija nije odabrana.</span>
                     <button type="button" class="btn btn-sm btn-outline-secondary" data-ukloni-lokaciju>Ukloni lokaciju</button>
                 </div>
                 <?php if (isset($errors['lokacija'])): ?>

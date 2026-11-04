@@ -192,7 +192,7 @@ Stanje nakon faze 7: **128 / 128 prošlo** (30. 10. 2026.)
 
 ## Testovi karte, radova i prometa – `tests/karta.sh`
 
-Stanje nakon faze 8: **92 / 92 prošlo** (31. 10. 2026.)
+Stanje: **110 / 110 prošlo** (4. 11. 2026.)
 
 | Područje | Scenariji | Dobiveno |
 |---|---|---|
@@ -201,6 +201,7 @@ Stanje nakon faze 8: **92 / 92 prošlo** (31. 10. 2026.)
 | Radovi – validacija | prazan obrazac (naslov, vrsta, lokacija, početak); lokacija izvan Zagreba (Sisak); `lat=45.8 OR 1=1`; kraj prije početka; nepostojeća četvrt; nepoznata vrsta → 422, ništa spremljeno | ✔ |
 | Radovi – CRUD | unos (admin kao autor, koordinate, razdoblje); vidljivo u API-ju; obrazac za uređivanje s `datetime-local`; izmjena (kraj NULL); izmjena nepostojećih → 404; brisanje; brisanje bez CSRF-a → 403 | ✔ |
 | Lokacija prijave | obrazac s kartom; lokacija izvan Zagreba i samo jedna koordinata → 422; ispravna lokacija spremljena, detalj prikazuje kartu, prijava je na javnoj karti (API); prijava bez lokacije prolazi | ✔ |
+| Prijava s mobitela | obrazac ima gumbe za kameru (`capture=environment`) i galeriju, gumb za lokaciju uređaja s provjerom HTTPS-a i adresu API-ja za adresu; `GET /lokacija`: gost → 401, bez koordinata, izvan Zagreba i `lat=45.8' OR '1'='1` → 400; ispravna točka → adresa i četvrt (naziv s „-” prepoznat kao „–”); 11. upit u minuti → 429 + `Retry-After` | ✔ |
 | Promet – testni odgovor | `?simulacija=testni`: oznaka `testni`, upozorenje „TESTNI PODACI”, 2 incidenta i 6 točaka protoka, koordinate `[lat, lng]`, kategorija na hrvatskom, atribucija | ✔ |
 | Promet – kvar | servis nedostupan i neočekivana struktura bez cachea → 503 JSON + `Retry-After`; sa starim cacheom → 200, `zastarjelo`, vrijeme zadnjeg uspješnog dohvata, upozorenje; simulacija ne prepisuje cache | ✔ |
 | Promet – stvarni poziv | ključ i adresa TomToma nikad u odgovoru; svježi cache se koristi bez poziva TomToma; potrošena dnevna kvota → stari podaci s upozorenjem; nepoznati parametri ignorirani; POST → 405 | ✔ |

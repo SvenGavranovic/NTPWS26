@@ -90,6 +90,34 @@ code "$A/prijave?po_stranici=100" >/dev/null
 has   "  → na javnoj karti (API)" '"lokacija":{"lat":45.812345,"lng":15.976543}'
 check "bez lokacije (neobavezna)" "$(prijava_s)" "303"
 
+naslov "Prijava s mobitela: kamera i lokacija uređaja"
+code -b "$ANA" "$B/prijave/nova" >/dev/null
+has   "gumb za fotografiranje kamerom" 'data-kamera'
+has   "  → i odabir iz galerije" 'data-galerija'
+has   "  → samo slikovni formati" 'accept="image/jpeg,image/png,image/webp"'
+has   "gumb za lokaciju uređaja" 'data-moja-lokacija'
+has   "  → adresa API-ja za adresu" "data-api-lokacija=\"$BP/api/v1/lokacija\""
+if grep -q "capture', 'environment'" "$KORIJEN/public/assets/js/app.js"; then ok "kamera: capture=environment"; else fail "nema capture"; fi
+if grep -q "isSecureContext" "$KORIJEN/public/assets/js/odabir-lokacije.js"; then ok "geolokacija: provjera HTTPS-a"; else fail "nema provjere HTTPS-a"; fi
+
+# adresa za točku: lažni zapis u cacheu (bez poziva Nominatima); "-" umjesto "–" provjerava usporedbu naziva
+ADR="$CACHE/adrese/$(printf '45.9001,16.2001' | sha1sum | cut -c1-40).json"
+mkdir -p "$CACHE/adrese"
+printf '{"adresa":"Testna ulica 1","cetvrt":"Novi Zagreb - istok"}' > "$ADR"
+check "GET /lokacija (gost)" "$(code "$A/lokacija?lat=45.9001&lng=16.2001")" "401"
+check "bez koordinata" "$(code -b "$ANA" "$A/lokacija")" "400"
+check "izvan Zagreba" "$(code -b "$ANA" "$A/lokacija?lat=46.3050&lng=16.3360")" "400"
+has   "  → poruka" 'području Grada Zagreba'
+check "neispravne koordinate (SQLi)" "$(code -b "$ANA" -G --data-urlencode "lat=45.8' OR '1'='1" --data-urlencode "lng=15.9" "$A/lokacija")" "400"
+check "ispravna točka" "$(code -b "$ANA" "$A/lokacija?lat=45.90012&lng=16.20008")" "200"
+eq    "  → adresa i četvrt" "$(jv data.adresa)/$(jv data.cetvrt_id)" "Testna ulica 1/6"
+has   "  → atribucija" 'OpenStreetMap'
+for i in $(seq 1 9); do code -b "$LEA" "$A/lokacija?lat=45.9001&lng=16.2001" >/dev/null; done
+check "10 upita u minuti" "$(code -b "$LEA" "$A/lokacija?lat=45.9001&lng=16.2001")" "200"
+check "11. upit → 429" "$(code -b "$LEA" "$A/lokacija?lat=45.9001&lng=16.2001")" "429"
+header_has "  → Retry-After" 'Retry-After: 60'
+rm -f "$ADR"
+
 naslov "Promet: testni odgovor"
 check "?simulacija=testni" "$(code "$A/promet?simulacija=testni")" "200"
 eq    "  → označen kao testni" "$(jv data.testni)/$(jv data.izvor)" "true/testni"

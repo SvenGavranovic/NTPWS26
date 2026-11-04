@@ -55,11 +55,21 @@ Iznad karte piše vrijeme zadnjeg uspješnog dohvata podataka o prometu, koji se
 
 ### Prijava problema
 1. Kliknite **+ Prijavi problem** u zaglavlju.
-2. Odaberite **fotografiju** problema (JPG, PNG ili WebP, najviše 5 MB). Pregled se prikaže ispod polja.
+2. Dodajte **fotografiju** problema (JPG, PNG ili WebP, najviše 5 MB). Na mobitelu gumb **📷 Fotografiraj** odmah otvara kameru, a **🖼️ Iz galerije** odabir postojeće fotografije. Pregled se prikaže ispod polja.
 3. Odaberite **gradsku četvrt** i **vrstu problema**.
 4. Upišite **kratki naslov** (npr. „Rupa na kolniku”) i **opis**: što je problem i gdje se točno nalazi.
-5. Po želji označite **lokaciju na karti** (klik na kartu ili gumb **Moja lokacija** na mobitelu) i upišite **adresu** ili opis lokacije. Prijave s lokacijom vide se na javnoj karti.
+5. Po želji odredite **lokaciju**:
+   - gumb **📍 Koristi trenutnu lokaciju uređaja** – preglednik traži dopuštenje, a oznaka se postavlja na mjesto na kojem se nalazite (uz prikaz točnosti). Aplikacija do 15 sekundi čeka precizan položaj (GPS); procjena lošija od 1 km se odbija;
+   - ili klik na kartu; oznaku je moguće povući na točno mjesto.
+
+   Nakon odabira točke ispod karte se ispiše pronađena adresa, a **gradska četvrt** se odabere automatski (ako je niste sami odabrali). Polje **Adresa ili opis lokacije** popunjavate sami. Prijave s lokacijom vide se na javnoj karti.
 6. Kliknite **Pošalji prijavu**.
+
+Kad fotografirate kamerom, a lokacija još nije odabrana, aplikacija odmah zatraži lokaciju uređaja – pretpostavka je da ste na mjestu problema.
+
+Velike fotografije s mobitela automatski se smanjuju prije slanja (najveća stranica 2048 px), pa se šalju brže. Pritom se iz fotografije uklanjaju skriveni podaci (EXIF), uključujući GPS koordinate.
+
+Lokacija uređaja dostupna je samo kad je aplikacija otvorena preko sigurne veze (**https://**) ili na samom računalu (`localhost`); to je pravilo preglednika. Na adresi poput `http://192.168.1.11/...` gumb javlja da lokacija nije dostupna, a mjesto se odabire na karti.
 
 Datum i vrijeme prijave bilježe se automatski. Hitnost procjenjuje služba. U jednom satu moguće je poslati najviše 10 prijava.
 

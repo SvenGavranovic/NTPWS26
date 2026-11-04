@@ -14,8 +14,9 @@ Sve putanje u nastavku navedene su relativno na tu adresu (npr. `GET /vijesti` =
 7. [Prijave problema](#prijave-problema)
 8. [Radovi](#radovi)
 9. [Promet (TomTom)](#promet-tomtom)
-10. [JSON Schema – valjan i nevaljan primjer](#json-schema--valjan-i-nevaljan-primjer)
-11. [Statusni kodovi](#statusni-kodovi)
+10. [Lokacija (adresa za koordinate)](#lokacija-adresa-za-koordinate)
+11. [JSON Schema – valjan i nevaljan primjer](#json-schema--valjan-i-nevaljan-primjer)
+12. [Statusni kodovi](#statusni-kodovi)
 
 ---
 
@@ -116,6 +117,7 @@ Pravila:
 | `PATCH /prijave/{id}` | dodjela, hitnost ili promjena statusa | ovisno o radnji |
 | `GET /radovi` | radovi na infrastrukturi | svi |
 | `GET /promet` | stanje prometa (TomTom, preko proxyja s cacheom) | svi |
+| `GET /lokacija` | adresa i gradska četvrt za koordinate (OpenStreetMap Nominatim) | prijavljeni |
 
 Unos, izmjenu i brisanje radova administrator radi u web sučelju (`/admin/radovi`).
 
@@ -156,6 +158,9 @@ curl -b kolacici.txt -H "Content-Type: application/json" -H "X-CSRF-Token: $CSRF
 curl "$API/radovi?aktivni=1&vrsta=cesta"
 curl $API/promet
 curl "$API/promet?simulacija=nedostupan"
+
+# Lokacija
+curl -b kolacici.txt "$API/lokacija?lat=45.7780&lng=15.9950"
 ```
 
 ---
@@ -462,6 +467,39 @@ Ponašanje kod kvara:
 
 ---
 
+## Lokacija (adresa za koordinate)
+
+### `GET /lokacija?lat=&lng=`
+Adresa i gradska četvrt za točku na karti (*reverse geocoding*). Obrazac prijave poziva ga nakon odabira točke ili dohvata lokacije uređaja ispisuje pronađenu adresu korisniku i odabire **gradsku četvrt** ako je korisnik nije sam odabrao.
+
+Poslužitelj pita **OpenStreetMap Nominatim** prema njegovim pravilima korištenja: najviše jedan zahtjev u sekundi za cijelu aplikaciju, aplikacija se predstavlja zaglavljem `User-Agent`, a rezultati se čuvaju 30 dana (`storage/cache/adrese`). Koordinate se prije slanja zaokružuju na četiri decimale (oko 10 m).
+
+| Parametar | Opis |
+|---|---|
+| `lat`, `lng` | obavezni; točka mora biti na području Grada Zagreba |
+
+Odgovor `200`:
+```json
+{
+  "data": {
+    "lat": 45.778, "lng": 15.995,
+    "adresa": "Avenija Dubrovnik",
+    "cetvrt": "Novi Zagreb - istok", "cetvrt_id": 6,
+    "izvor": "© OpenStreetMap suradnici (Nominatim)"
+  }
+}
+```
+`adresa` i `cetvrt_id` mogu biti `null` ako ih Nominatim za točku ne zna.
+
+| Situacija | Odgovor |
+|---|---|
+| nije prijavljen | `401` |
+| nedostaju koordinate, nisu brojevi ili su izvan Zagreba | `400` |
+| više od 10 upita u minuti iz iste sesije | `429` + `Retry-After: 60` |
+| Nominatim nije dostupan | `503` + `Retry-After: 60` |
+
+---
+
 ## JSON Schema – valjan i nevaljan primjer
 
 Sheme su u mapi [`schemas/`](../schemas) (JSON Schema draft-07), a provjerava ih biblioteka `justinrainbow/json-schema` prije bilo kakve obrade:
@@ -523,7 +561,7 @@ Oba primjera automatski se provjeravaju u `tests/api.sh`.
 | `403 Forbidden` | nema ovlasti (uloga, tuđi zapis) ili CSRF token nije ispravan |
 | `404 Not Found` | resurs ne postoji (ili je vijest neobjavljena) |
 | `405 Method Not Allowed` | metoda nije podržana za putanju; zaglavlje `Allow` |
-| `503 Service Unavailable` | `GET /promet`: TomTom nije dostupan, a nema ranijih podataka; zaglavlje `Retry-After` |
+| `503 Service Unavailable` | `GET /promet`: TomTom nije dostupan, a nema ranijih podataka; `GET /lokacija`: Nominatim nije dostupan; zaglavlje `Retry-After` |
 | `409 Conflict` | prijelaz statusa nije dopušten ili se status u međuvremenu promijenio |
-| `429 Too Many Requests` | previše pokušaja prijave ili previše novih prijava; zaglavlje `Retry-After` |
+| `429 Too Many Requests` | previše pokušaja prijave, novih prijava ili upita za adresu; zaglavlje `Retry-After` |
 | `500 Internal Server Error` | neočekivana pogreška; detalji samo u zapisniku poslužitelja |

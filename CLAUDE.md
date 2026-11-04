@@ -32,10 +32,11 @@ Registracija daje samo ulogu korisnik. Sve ovlasti provjerava backend. Deaktivac
 - Leaflet + OSM, `maxBounds` na Zagreb (oko lat 45.70–45.95, lon 15.80–16.25).
 - Markeri prijava i radova iz vlastitog API-ja; radove unosi admin.
 - TomTom Traffic preko proxyja `/api/v1/promet`: ključ samo u `.env`, timeout, cache 60–120 s, obrada uspjeha / nedostupnosti / neočekivane strukture, vrijeme zadnjeg dohvata, jasno označen testni odgovor. Prije implementacije provjeriti aktualne uvjete i limite TomToma.
-- Opcionalno Nominatim (najviše 1 zahtjev/s, ispravan User-Agent).
+- Nominatim (reverse geocoding u obrascu prijave, `/api/v1/lokacija`): najviše 1 zahtjev/s, ispravan User-Agent, cache.
+- Obrazac prijave na mobitelu: kamera (`capture`), lokacija uređaja (radi samo na HTTPS-u ili localhostu).
 
 ## Vlastiti REST API (`/api/v1/`, JSON)
-`GET/POST /vijesti`, `GET/PATCH/DELETE /vijesti/{id}`, `GET /kategorije`, `GET/POST /prijave`, `GET/PATCH /prijave/{id}`, `GET /radovi`, `GET /promet`.
+`GET/POST /vijesti`, `GET/PATCH/DELETE /vijesti/{id}`, `GET /kategorije`, `GET/POST /prijave`, `GET/PATCH /prijave/{id}`, `GET /radovi`, `GET /promet`, `GET /lokacija`.
 Ispravne metode i statusni kodovi (200, 201, 204, 400, 401, 403, 404, 500), dosljedna struktura uspjeha i pogreške, straničenje i filtar, validacija, autentifikacija za izmjene, neobjavljene vijesti nikad ne izlaze, JSON Schema za barem jedan POST (valjan i nevaljan primjer). Frontend stvarno koristi API.
 
 ## Sigurnost

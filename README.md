@@ -92,7 +92,7 @@ Napomene:
 - adresa je **javna** dok `cloudflared` radi i mijenja se pri svakom pokretanju; zaustavlja se s Ctrl+C;
 - prije objave postaviti `APP_DEBUG=false`; koristiti samo testne podatke;
 - Quick Tunnel je namijenjen testiranju (bez jamstva dostupnosti, najviše 200 istovremenih zahtjeva);
-- aplikacija iza tunela koristi stvarnu IP adresu korisnika (ograničenje neuspjelih prijava) i postavlja kolačić sesije sa zastavicom `Secure`; preko HTTPS-a radi i gumb „Moja lokacija” na mobitelu.
+- aplikacija iza tunela koristi stvarnu IP adresu korisnika (ograničenje neuspjelih prijava) i postavlja kolačić sesije sa zastavicom `Secure`; preko HTTPS-a na mobitelu radi i dohvat lokacije uređaja u obrascu prijave (preglednici ga ne dopuštaju na `http://` adresama osim `localhost`).
 
 ---
 
@@ -121,6 +121,7 @@ Napomene:
 |---|---|
 | OpenStreetMap (pločice karte) | podloga karte; © OpenStreetMap suradnici |
 | TomTom Traffic API | incidenti i protok u prometu (preko vlastitog proxyja) |
+| OpenStreetMap Nominatim | adresa i gradska četvrt za odabranu točku u obrascu prijave (`GET /api/v1/lokacija`; najviše 1 zahtjev/s, cache 30 dana) |
 
 Vlastiti JavaScript (`public/assets/js`) je bez dodatnih biblioteka (vanilla JS, `fetch` prema vlastitom API-ju).
 
@@ -187,7 +188,7 @@ Na Windowsima testovi u kratkom vremenu otvore tisuće TCP veza; `tests/sve.sh` 
 
 ## Dodatne funkcionalnosti
 
-Uz obavezne elemente: cache i ograničenje broja zahtjeva prema vanjskom servisu, ograničenje neuspjelih prijava (brute force), automatski testovi (više od 600 provjera, uključujući napade), povijest promjena statusa prijava (tko, kada, komentar), moderacija podataka vanjskog servisa uz zapis razloga, karta s odabirom lokacije.
+Uz obavezne elemente: cache i ograničenje broja zahtjeva prema vanjskom servisu, ograničenje neuspjelih prijava (brute force), automatski testovi (više od 600 provjera, uključujući napade), povijest promjena statusa prijava (tko, kada, komentar), moderacija podataka vanjskog servisa uz zapis razloga, karta s odabirom lokacije, prijava s mobitela (fotografiranje kamerom, lokacija uređaja, prijedlog adrese i automatski odabir četvrti, smanjivanje fotografije prije slanja).
 
 ## Korištenje AI alata
 
